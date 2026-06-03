@@ -14,7 +14,7 @@ WiFi Configuration: Web-based setup with network scanning
 MAC Address Locking: Restrict controller access to specific devices
 Over-the-Air Updates: Firmware updates via web interface
 
-Installation
+# Installation
 
 Before installing libraries, you need to add the [ESP32_bluepad32](https://github.com/ricardoquesada/bluepad32) platform to your Arduino IDE.
 
@@ -30,19 +30,16 @@ In the search bar, type "esp32_bluepad32".
 
 
 # Install librarys 
-
 [LittleFS (for ESP32)](https://github.com/lorol/LITTLEFS) 
-
 ArduinoJson 
 
-<img width="294" height="542" alt="kuva" src="https://github.com/user-attachments/assets/1544a9e2-1a29-4ba2-bede-efac3149f9f3" />
-Web
 
-SETUP Notes
+# SETUP Notes
 - WIFI AP mode is laggy, be patient. IP: http://192.168.4.1
 - https not work!
 - in setup. Lock current cotroller button, is use short time when controller is connected to esp32, be quick.
 - Testing without TPMS1 pin 9 connected causes instability.
   
 - 
-
+<img width="294" height="542" alt="kuva" src="https://github.com/user-attachments/assets/1544a9e2-1a29-4ba2-bede-efac3149f9f3" />
+Web
