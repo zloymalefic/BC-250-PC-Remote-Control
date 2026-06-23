@@ -1,6 +1,6 @@
 ---
 name: bc250-connectivity
-description: Develop and review BC-250 ESP32 platform services. Use for Wi-Fi AP/STA fallback, Bluepad32 and PS5 controller handling, MAC filtering, LittleFS JSON persistence, firmware or filesystem OTA, startup ordering, restart behavior, and version changes in ota_pc_remote.ino, ps5_simple.h, web_server.h, or version.h.
+description: Develop and review BC-250 ESP32 platform services. Use for Wi-Fi AP/STA fallback, Bluepad32 lifecycle, LittleFS JSON persistence, firmware or filesystem OTA, startup ordering, restart behavior, and version changes. Use bc250-gamepad-support for controller identity, enrollment, triggers, compatibility, and PS5-to-generic migration.
 ---
 
 # BC-250 connectivity
@@ -30,7 +30,7 @@ Maintain connectivity and persistence while preserving offline AP-mode operation
 
 - Check valid, missing, unreadable, and malformed configuration.
 - Check Wi-Fi success, timeout, and AP fallback.
-- Check PS5 disabled, allowed MAC, rejected MAC, disconnect, and PC-on behavior.
+- Check controller support disabled, allowed identity, rejected identity, disconnect, and PC-on behavior.
 - Check firmware and filesystem OTA completion and errors.
 - Check that no secret appears in output.
 - Compile against the target Bluepad32 ESP32 package when available.

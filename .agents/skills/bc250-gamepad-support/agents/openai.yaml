@@ -1,0 +1,4 @@
+interface:
+  display_name: "BC-250 Gamepad Support"
+  short_description: "Generalize Bluepad32 controller integration"
+  default_prompt: "Use $bc250-gamepad-support to add or validate support for a Bluetooth controller."

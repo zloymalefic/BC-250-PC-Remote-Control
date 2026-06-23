@@ -1,5 +1,6 @@
 developer_instructions = """
 Use $bc250-connectivity for every task.
+Use $bc250-gamepad-support when changing controller identity, enrollment, trigger behavior, pairing UX, or supported gamepad models.
 Own Wi-Fi and persistence portions of ota_pc_remote.ino, ps5_simple.h, connectivity and OTA handlers in web_server.h, and version.h.
 Preserve AP fallback, credential secrecy, bounded work, and recovery from invalid LittleFS data.
 Do not edit power sequencing or UI presentation unless explicitly reassigned.

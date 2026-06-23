@@ -4,9 +4,9 @@ This repository contains ESP32/Arduino firmware and a LittleFS-hosted web UI for
 
 ## Repository map
 
-- `ota_pc_remote.ino`: lifecycle, main loop, Wi-Fi and PS5 persistence.
+- `ota_pc_remote.ino`: lifecycle, main loop, Wi-Fi and controller persistence.
 - `pc_control.h`: GPIO initialization, debounce, PC-state tracking, and power state machine.
-- `ps5_simple.h`: Bluepad32 controller filtering and power-on trigger.
+- `ps5_simple.h`: legacy PS5-named Bluepad32 filtering and power-on trigger; target for generic-controller migration.
 - `web_server.h`: HTTP API, static assets, and OTA handlers.
 - `data/`: LittleFS-hosted HTML, CSS, JavaScript, and SVG.
 - `pins.h`: hardware pin assignments; changes are hardware-critical.
@@ -27,6 +27,7 @@ This repository contains ESP32/Arduino firmware and a LittleFS-hosted web UI for
 
 - Use `$bc250-firmware` for GPIO, buttons, PC monitoring, and power sequencing.
 - Use `$bc250-connectivity` for Wi-Fi, Bluepad32/PS5, LittleFS, OTA, and versioning.
+- Use `$bc250-gamepad-support` for generic controller architecture, identity, enrollment, trigger policies, and compatibility testing.
 - Use `$bc250-web-ui` for HTTP routes and files under `data/`.
 - Use `$wled-core` for WLED core firmware and PlatformIO work.
 - Use `$wled-effects` for WLED effects, palettes, and hot-path rendering.
