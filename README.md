@@ -26,7 +26,7 @@ Controller compatibility still depends on the Bluepad32 release and ESP32 target
 
 ## Installation
 
-Before installing libraries, you need to add the [ESP32_bluepad32](https://github.com/ricardoquesada/bluepad32) platform to your Arduino IDE.
+Before installing libraries, you need to add the [ESP32_bluepad32](https://github.com/ricardoquesada/bluepad32) platform to your Arduino IDE or Arduino CLI.
 
 Open Arduino IDE.
 Go to File > Preferences (or Arduino IDE > Settings on macOS).
@@ -43,6 +43,54 @@ Install the `esp32_bluepad32` board package. This change was developed against t
 
 - LittleFS for ESP32
 - ArduinoJson
+
+## Build with Arduino CLI
+
+Install the CLI tools:
+
+```sh
+brew install arduino-cli platformio
+```
+
+Install the Bluepad32 ESP32 board package and ArduinoJson into the repository-local `.arduino/` directory:
+
+```sh
+tools/setup_arduino_cli.sh
+```
+
+Compile firmware without connected hardware:
+
+```sh
+python3 tools/build_firmware.py compile
+```
+
+Upload to a connected ESP32 only after checking the target port and wiring:
+
+```sh
+python3 tools/build_firmware.py upload --port /dev/cu.usbserial-0001
+```
+
+The default FQBN is `esp32-bluepad32:esp32:esp32`. Override it with `--fqbn` or `BC250_FQBN` when using another Bluepad32 ESP32 board.
+
+## Build with PlatformIO
+
+`platformio.ini` is present for PlatformIO entrypoints and host-side checks:
+
+```sh
+PLATFORMIO_CORE_DIR=.pio PLATFORMIO_SETTING_ENABLE_TELEMETRY=no pio run -e host-tests -t hosttests
+PLATFORMIO_CORE_DIR=.pio PLATFORMIO_SETTING_ENABLE_TELEMETRY=no pio run -e firmware-arduino-cli -t firmware
+```
+
+The firmware itself uses Bluepad32's Arduino ESP32 board package. That package is distributed through Arduino Boards Manager rather than as a normal PlatformIO Arduino library, so the PlatformIO firmware target intentionally delegates to the Arduino CLI flow above.
+
+## Emulation
+
+ESP32 emulators can be useful for low-level boot experiments, but this firmware depends on Wi-Fi AP mode, Bluepad32 Bluetooth controller handling, LittleFS web assets, GPIO relay outputs, and BC-250 monitor wiring. Do not treat emulator execution as hardware validation.
+
+- Espressif QEMU is an ESP-IDF `idf.py qemu` workflow, not the Arduino CLI Bluepad32 board-package workflow used here.
+- Wokwi can run ESP32 Arduino/custom firmware, but its ESP32 feature table marks Bluetooth as not implemented, so it cannot validate Bluepad32 controller behavior.
+
+Without a physical ESP32 and BC-250 wiring, manual validation is limited to compilation, host-side contract tests, and review of generated firmware artifacts.
 
 ## Controller setup
 

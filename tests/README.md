@@ -26,7 +26,8 @@ python3 tools/run_host_tests.py
 
 ## Explicitly skipped
 
-- Firmware compilation: requires Arduino IDE/CLI or PlatformIO plus the ESP32 Bluepad32 board package.
-- LittleFS image packaging/upload: requires the embedded toolchain and target workflow.
+- Firmware compilation: run `tools/setup_arduino_cli.sh` once, then `python3 tools/build_firmware.py compile`.
+- Firmware upload: requires connected authorized ESP32 hardware and an explicit serial `--port`.
+- LittleFS image packaging/upload: requires an embedded filesystem image workflow and must stay separate from firmware upload.
 - Browser rendering checks: require a browser or device test setup.
 - Bluetooth pairing, relay timing, PC power sequencing, OTA flashing, and hardware validation: require authorized hardware and must not run in unattended host-side tests.

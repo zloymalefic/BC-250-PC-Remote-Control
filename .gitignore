@@ -1,0 +1,5 @@
+.arduino/
+.pio/
+build/
+__pycache__/
+tests/__pycache__/
