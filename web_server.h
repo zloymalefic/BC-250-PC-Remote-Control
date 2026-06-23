@@ -15,14 +15,12 @@ extern bool shutdownRequested;
 extern bool forceShutdown;
 extern PowerState powerState;
 extern unsigned long powerStateStartTime;
-extern String ps5MacAddress;
-extern bool ps5Enabled;
-extern bool ps5AutoConnect;
 extern String wifiSSID;
 extern String wifiPassword;
 extern bool wifiConfigured;
 extern bool apMode;
-extern PS5Simple ps5Simple;
+extern ControllerConfig controllerConfig;
+extern GamepadController gamepadController;
 
 // Funktioprototyypit
 void saveWiFiConfig(String ssid, String pass);
@@ -30,7 +28,8 @@ bool getStablePcState();
 void startPowerOn();
 void startNormalShutdown();
 void startForceShutdown();
-void savePS5Config(bool enabled, String mac, bool autoConnect);
+bool saveControllerConfig();
+bool updateControllerConfigFromJson(JsonObjectConst root, String& error);
 
 String indexHtml = "";
 String updateHtml = "";
@@ -311,136 +310,172 @@ void setupWebServer() {
         }
     });
 
-    // API: PS5 konfiguraatio - GET
-    server.on("/api/ps5/config", HTTP_GET, []() {
-        StaticJsonDocument<300> doc;
-        doc["macAddress"] = ps5MacAddress;
-        doc["enabled"] = ps5Enabled;
-        doc["autoConnect"] = ps5AutoConnect;
-        
+    // API: Controller configuration
+    server.on("/api/controllers/config", HTTP_GET, []() {
+        StaticJsonDocument<1536> doc;
+        doc["schema"] = CONTROLLER_CONFIG_SCHEMA;
+        doc["enabled"] = controllerConfig.enabled;
+        JsonObject trigger = doc.createNestedObject("trigger");
+        trigger["mode"] = controllerConfig.triggerMode;
+        trigger["button"] = controllerConfig.triggerButton;
+        trigger["rearmMs"] = controllerConfig.rearmMs;
+        JsonArray controllers = doc.createNestedArray("controllers");
+        for (uint8_t i = 0; i < controllerConfig.controllerCount; i++) {
+            JsonObject entry = controllers.createNestedObject();
+            entry["macAddress"] = controllerConfig.controllers[i].macAddress;
+            entry["label"] = controllerConfig.controllers[i].label;
+            entry["enabled"] = controllerConfig.controllers[i].enabled;
+        }
+
         String response;
         serializeJson(doc, response);
         server.send(200, "application/json", response);
     });
-    
-        // LittleFS OTA update
-        server.on("/update-fs", HTTP_POST, []() {
-            server.sendHeader("Connection", "close");
-            server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-            delay(1000);
-            ESP.restart();
-        }, []() {
-            HTTPUpload& upload = server.upload();
-            
-            if (upload.status == UPLOAD_FILE_START) {
-                Serial.printf("LittleFS Update: %s\n", upload.filename.c_str());
-                if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) {  // HUOM: U_SPIFFS!
-                    Update.printError(Serial);
-                }
-            } else if (upload.status == UPLOAD_FILE_WRITE) {
-                if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                    Update.printError(Serial);
-                }
-            } else if (upload.status == UPLOAD_FILE_END) {
-                if (Update.end(true)) {
-                    Serial.printf("LittleFS Update Success: %u bytes\n", upload.totalSize);
-                } else {
-                    Update.printError(Serial);
-                }
-            }
-        });
 
-    // API: PS5 konfiguraatio - POST
-    server.on("/api/ps5/config", HTTP_POST, []() {
+    server.on("/api/controllers/config", HTTP_POST, []() {
         if (!server.hasArg("plain")) {
             server.send(400, "text/plain", "Body missing");
             return;
         }
-        
-        String body = server.arg("plain");
-        
-        StaticJsonDocument<300> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        
-        if (error) {
+
+        StaticJsonDocument<1536> doc;
+        DeserializationError parseError = deserializeJson(doc, server.arg("plain"));
+        if (parseError || !doc.is<JsonObject>()) {
             server.send(400, "text/plain", "Invalid JSON");
             return;
         }
-        
-        bool enabled = doc["enabled"] | false;
-        const char* mac = doc["macAddress"];
-        bool autoConnect = doc["autoConnect"] | false;
-        
-        String macStr = mac ? String(mac) : "";
-        
-        savePS5Config(enabled, macStr, autoConnect);
+
+        String validationError;
+        if (!updateControllerConfigFromJson(doc.as<JsonObjectConst>(), validationError)) {
+            server.send(400, "text/plain", validationError);
+            return;
+        }
+        if (!saveControllerConfig()) {
+            server.send(500, "text/plain", "Failed to save controller config");
+            return;
+        }
         server.send(200, "text/plain", "OK");
-        Serial.println("PS5 config saved");
     });
 
-    // API: PS5 status
-    server.on("/api/ps5/status", HTTP_GET, []() {
-        String stateStr = "unknown";
-        
-        if (!ps5Enabled) {
-            stateStr = "disabled";
-        } else if (ps5Simple.isConnected()) {
-            stateStr = "connected";
-        } else {
-            stateStr = "disconnected";
+    server.on("/api/controllers/status", HTTP_GET, []() {
+        StaticJsonDocument<768> doc;
+        doc["state"] = !controllerConfig.enabled ? "disabled" :
+                       (gamepadController.isConnected() ? "connected" : "disconnected");
+        doc["bluetoothRunning"] = gamepadController.isBluetoothRunning();
+        doc["btAllowed"] = !getStablePcState() && powerState == POWER_IDLE;
+        doc["connected"] = gamepadController.isConnected();
+        doc["authorized"] = gamepadController.isConnectedControllerAuthorized();
+        doc["bluepad32Firmware"] = BP32.firmwareVersion();
+
+        if (gamepadController.isConnected()) {
+            GamepadIdentity identity = gamepadController.getActiveIdentity();
+            JsonObject active = doc.createNestedObject("active");
+            active["macAddress"] = identity.macAddress;
+            active["modelName"] = identity.modelName;
+            active["vendorId"] = identity.vendorId;
+            active["productId"] = identity.productId;
         }
-        
-        StaticJsonDocument<200> doc;
-        doc["state"] = stateStr;
-        doc["macAddress"] = ps5MacAddress;
-        doc["btAllowed"] = !getStablePcState();
-        doc["connectedMac"] = ps5Simple.getConnectedMac();
-        
+
         String response;
         serializeJson(doc, response);
         server.send(200, "application/json", response);
     });
 
-    // API: Hae yhdistetyn ohjaimen MAC-osoite
-    server.on("/api/ps5/connected-mac", HTTP_GET, []() {
-        StaticJsonDocument<200> doc;
-        
-        if (ps5Simple.isConnected()) {
-            String controllerMac = ps5Simple.getConnectedMac();
-            
-            if (controllerMac.length() > 0) {
-                doc["connected"] = true;
-                doc["macAddress"] = controllerMac;
-                doc["note"] = "MAC address retrieved successfully";
-            } else {
-                doc["connected"] = true;
-                doc["macAddress"] = "";
-                doc["note"] = "Connected but MAC not available - enter manually";
+    server.on("/api/controllers/discovered", HTTP_GET, []() {
+        StaticJsonDocument<512> doc;
+        doc["available"] = gamepadController.hasLastSeenIdentity();
+        if (gamepadController.hasLastSeenIdentity()) {
+            GamepadIdentity identity = gamepadController.getLastSeenIdentity();
+            doc["macAddress"] = identity.macAddress;
+            doc["modelName"] = identity.modelName;
+            doc["vendorId"] = identity.vendorId;
+            doc["productId"] = identity.productId;
+        }
+
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    });
+
+    server.on("/api/controllers/enroll", HTTP_POST, []() {
+        String label;
+        if (server.hasArg("plain") && server.arg("plain").length() > 0) {
+            StaticJsonDocument<256> doc;
+            if (deserializeJson(doc, server.arg("plain"))) {
+                server.send(400, "text/plain", "Invalid JSON");
+                return;
             }
-        } else {
-            doc["connected"] = false;
-            doc["macAddress"] = "";
-            doc["note"] = "No controller connected";
+            label = String(doc["label"] | "");
+            label.trim();
+            if (label.length() > 48) {
+                server.send(400, "text/plain", "Label is too long");
+                return;
+            }
         }
-        
-        String response;
-        serializeJson(doc, response);
-        server.send(200, "application/json", response);
-    }); 
 
-    // API: Vapauta MAC-lukko
-    server.on("/api/ps5/unlock", HTTP_POST, []() {
-        Serial.println("PS5: MAC-lukko vapautetaan");
-        
-        savePS5Config(ps5Enabled, "", ps5AutoConnect);
-        
-        StaticJsonDocument<100> doc;
-        doc["status"] = "ok";
-        doc["message"] = "MAC lock removed - all controllers allowed";
-        
-        String response;
-        serializeJson(doc, response);
-        server.send(200, "application/json", response);
+        String error;
+        if (!gamepadController.enrollLastSeen(label, error)) {
+            server.send(409, "text/plain", error);
+            return;
+        }
+        if (!saveControllerConfig()) {
+            server.send(500, "text/plain", "Failed to save controller config");
+            return;
+        }
+        server.send(200, "text/plain", "OK");
+    });
+
+    server.on("/api/controllers/remove", HTTP_POST, []() {
+        if (!server.hasArg("plain")) {
+            server.send(400, "text/plain", "Body missing");
+            return;
+        }
+        StaticJsonDocument<256> doc;
+        if (deserializeJson(doc, server.arg("plain"))) {
+            server.send(400, "text/plain", "Invalid JSON");
+            return;
+        }
+        String macAddress = normalizeControllerMac(String(doc["macAddress"] | ""));
+        if (!isValidControllerMac(macAddress)) {
+            server.send(400, "text/plain", "Invalid controller MAC address");
+            return;
+        }
+        if (!gamepadController.removeAuthorized(macAddress)) {
+            server.send(404, "text/plain", "Controller not found");
+            return;
+        }
+        if (!saveControllerConfig()) {
+            server.send(500, "text/plain", "Failed to save controller config");
+            return;
+        }
+        server.send(200, "text/plain", "OK");
+    });
+
+    // LittleFS OTA update
+    server.on("/update-fs", HTTP_POST, []() {
+        server.sendHeader("Connection", "close");
+        server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        delay(1000);
+        ESP.restart();
+    }, []() {
+        HTTPUpload& upload = server.upload();
+
+        if (upload.status == UPLOAD_FILE_START) {
+            Serial.printf("LittleFS Update: %s\n", upload.filename.c_str());
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) {
+                Update.printError(Serial);
+            }
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                Update.printError(Serial);
+            }
+        } else if (upload.status == UPLOAD_FILE_END) {
+            if (Update.end(true)) {
+                Serial.printf("LittleFS Update Success: %u bytes\n", upload.totalSize);
+            } else {
+                Update.printError(Serial);
+            }
+        }
     });
 
     // 404 - Not found

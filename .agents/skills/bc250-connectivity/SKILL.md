@@ -1,6 +1,6 @@
 ---
 name: bc250-connectivity
-description: Develop and review BC-250 ESP32 platform services. Use for Wi-Fi AP/STA fallback, Bluepad32 lifecycle, LittleFS JSON persistence, firmware or filesystem OTA, startup ordering, restart behavior, and version changes. Use bc250-gamepad-support for controller identity, enrollment, triggers, compatibility, and PS5-to-generic migration.
+description: Develop and review BC-250 ESP32 platform services. Use for Wi-Fi AP/STA fallback, Bluepad32 lifecycle, LittleFS JSON persistence, firmware or filesystem OTA, startup ordering, restart behavior, and version changes. Use bc250-gamepad-support for controller identity, enrollment, triggers, and compatibility.
 ---
 
 # BC-250 connectivity

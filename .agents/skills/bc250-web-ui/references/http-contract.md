@@ -24,12 +24,13 @@ Inspect handlers; route names do not guarantee physical behavior.
 - `POST /api/wifi/config` with `ssid` and optional `password`; saves then restarts.
 - `GET /api/wifi/scan` -> scanning object or network array.
 
-## PS5
+## Controllers
 
-- `GET|POST /api/ps5/config`
-- `GET /api/ps5/status`
-- `GET /api/ps5/connected-mac`
-- `POST /api/ps5/unlock`
+- `GET|POST /api/controllers/config`
+- `GET /api/controllers/status`
+- `GET /api/controllers/discovered`
+- `POST /api/controllers/enroll`
+- `POST /api/controllers/remove`
 
 ## OTA
 

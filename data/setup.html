@@ -131,44 +131,68 @@
         <div id="wifiSaveStatus" style="margin-top:15px;"></div>
       </div>
       
-      <h1>🎮 PS5 CONTROLLER SETUP</h1>
-      
+      <h1>🎮 BLUETOOTH CONTROLLER SETUP</h1>
+
       <div class="settings-section">
         <label style="display:flex; align-items:center; margin:20px 0; cursor:pointer;">
-          <input type="checkbox" id="ps5Enabled" style="width:20px; height:20px; margin-right:12px; accent-color:#00d9ff;"> 
-          <strong style="font-family:'Share Tech Mono';">ENABLE PS5 CONTROLLER SUPPORT</strong>
+          <input type="checkbox" id="controllerEnabled" style="width:20px; height:20px; margin-right:12px; accent-color:#00d9ff;">
+          <strong style="font-family:'Share Tech Mono';">ENABLE BLUETOOTH CONTROLLER SUPPORT</strong>
         </label>
-        
-        <!-- Controller Status Display -->
+
         <div id="controllerStatus" class="status-message" style="margin-bottom:20px;"></div>
-        
-        <!-- MAC Lock Status Display -->
-        <div id="macLockStatus" class="mac-display">
-          <span id="macAddressDisplay">--:--:--:--:--:--</span>
-        </div>
-        
-        <!-- Lock/Unlock Buttons -->
-        <div style="display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap;">
-          <button onclick="lockCurrentMac()" class="btn btn-green" style="flex: 1 1 200px; padding:15px;" id="lockBtn">
-            <i class='bx bx-lock'></i> LOCK CURRENT CONTROLLER
-          </button>
-          <button onclick="unlockMac()" class="btn btn-red" style="flex: 1 1 200px; padding:15px;" id="unlockBtn">
-            <i class='bx bx-lock-open'></i> REMOVE LOCK
-          </button>
-        </div>
-        
+
+        <label style="display:block; margin:20px 0;">
+          <strong style="font-family:'Share Tech Mono';">POWER-ON TRIGGER:</strong>
+          <select id="triggerMode" style="width:100%; padding:15px; margin-top:8px; background:#0a0a0f; border:2px solid #2a2a3a; color:#fff;">
+            <option value="connect">Authorized controller connects</option>
+            <option value="button">Authorized controller button is pressed</option>
+          </select>
+        </label>
+
+        <label style="display:block; margin:20px 0;">
+          <strong style="font-family:'Share Tech Mono';">TRIGGER BUTTON:</strong>
+          <select id="triggerButton" style="width:100%; padding:15px; margin-top:8px; background:#0a0a0f; border:2px solid #2a2a3a; color:#fff;">
+            <option value="system">System / Home</option>
+            <option value="start">Start / Plus</option>
+            <option value="select">Select / Minus</option>
+            <option value="capture">Capture</option>
+            <option value="a">A</option>
+            <option value="b">B</option>
+            <option value="x">X</option>
+            <option value="y">Y</option>
+          </select>
+          <div class="info-text">Used only in button trigger mode. Button names are normalized by Bluepad32.</div>
+        </label>
+
+        <label style="display:block; margin:20px 0;">
+          <strong style="font-family:'Share Tech Mono';">REARM DELAY (MS):</strong>
+          <input type="number" id="rearmMs" min="1000" max="60000" value="5000" style="width:100%; padding:15px; margin-top:8px; background:#0a0a0f; border:2px solid #2a2a3a; color:#fff;">
+        </label>
+
+        <h3>LAST DISCOVERED CONTROLLER</h3>
+        <div id="discoveredController" class="mac-display">No controller discovered</div>
+        <label style="display:block; margin:20px 0;">
+          <strong style="font-family:'Share Tech Mono';">LABEL:</strong>
+          <input type="text" id="controllerLabel" maxlength="48" placeholder="e.g. 8BitDo Ultimate 2" style="width:100%; padding:15px; margin-top:8px; background:#0a0a0f; border:2px solid #2a2a3a; color:#fff;">
+        </label>
+        <button onclick="enrollDiscoveredController()" class="btn btn-green" style="width:100%;" id="enrollBtn" disabled>
+          <i class='bx bx-plus'></i> AUTHORIZE DISCOVERED CONTROLLER
+        </button>
+
+        <h3 style="margin-top:30px;">AUTHORIZED CONTROLLERS</h3>
+        <div id="authorizedControllers" class="status-message">No authorized controllers</div>
+
         <div class="lock-hid-message">
-          <strong>🔒 AUTOMATIC MAC LOCKING</strong>
-          <div style="margin-top: 5px; color: #8899aa; font-size: 0.85rem;">
-            <span style="color:#00d9ff;">📱 When you connect a controller, its MAC is automatically saved.</span><br>
-            <span style="color:#8899aa;">• "LOCK" button saves the currently seen controller</span><br>
-            <span style="color:#8899aa;">• "REMOVE LOCK" allows any controller again</span><br>
-            <span style="color:#ffaa00;">⚠️ Only one controller can be locked at a time</span>
+          <strong>PAIRING AND IDENTITY</strong>
+          <div style="margin-top:5px; color:#8899aa; font-size:0.85rem;">
+            Put the controller in Bluetooth pairing mode while the PC is off. It may identify as 8BitDo,
+            Switch Pro, Xbox, Android, or generic HID depending on its selected mode.
+            An unknown controller is never authorized automatically.
           </div>
         </div>
-        
-        <button onclick="savePS5()" class="btn" style="width:100%; margin-top:30px;">💾 SAVE PS5 SETTINGS</button>
-        <div id="ps5Status" style="margin-top:15px;"></div>
+
+        <button onclick="saveControllerConfig()" class="btn" style="width:100%; margin-top:30px;">💾 SAVE CONTROLLER SETTINGS</button>
+        <div id="controllerSaveStatus" style="margin-top:15px;"></div>
       </div>
     </div>
   </main>
@@ -275,189 +299,114 @@
       }
     }
     
-    // Hae yhdistetyn ohjaimen MAC
-    async function getConnectedControllerMac() {
-      try {
-        const res = await fetch('/api/ps5/connected-mac');
-        const data = await res.json();
-        
-        if (data.connected && data.macAddress) {
-          return data.macAddress;
-        }
-        return null;
-      } catch (e) {
-        console.error(e);
-        return null;
-      }
-    }
-    
-    // Lukitse nykyinen ohjain
-    async function lockCurrentMac() {
-      const statusDiv = document.getElementById('controllerStatus');
-      statusDiv.innerHTML = '🔍 LOOKING FOR CONTROLLER...';
-      statusDiv.style.borderLeftColor = '#8899aa';
-      
-      try {
-        const mac = await getConnectedControllerMac();
-        
-        if (mac) {
-          // Lähetä MAC tallennettavaksi
-          const config = {
-            enabled: document.getElementById('ps5Enabled').checked,
-            macAddress: mac,
-            autoConnect: false
-          };
-          
-          const res = await fetch('/api/ps5/config', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(config)
-          });
-          
-          if (res.ok) {
-            document.getElementById('macAddressDisplay').innerText = mac;
-            statusDiv.innerHTML = '✅ CONTROLLER LOCKED! MAC: ' + mac;
-            statusDiv.style.borderLeftColor = '#00aa00';
-            
-            // Päivitä konfiguraatio
-            loadPS5();
-          } else {
-            statusDiv.innerHTML = '❌ FAILED TO LOCK CONTROLLER';
-            statusDiv.style.borderLeftColor = '#aa0000';
-          }
-        } else {
-          statusDiv.innerHTML = '❌ NO CONTROLLER DETECTED. Press PS button to wake up controller.';
-          statusDiv.style.borderLeftColor = '#aa0000';
-        }
-      } catch (e) {
-        statusDiv.innerHTML = '❌ ERROR: ' + e.message;
-        statusDiv.style.borderLeftColor = '#aa0000';
-        console.error(e);
-      }
-    }
-    
-    // Vapauta MAC-lukko
-    async function unlockMac() {
-      if (!confirm('Are you sure you want to remove MAC lock? This will allow ALL controllers to control the PC.')) {
+    let controllerConfig = {enabled:false, trigger:{mode:'connect', button:'system', rearmMs:5000}, controllers:[]};
+
+    function renderAuthorizedControllers() {
+      const container = document.getElementById('authorizedControllers');
+      container.replaceChildren();
+      if (!controllerConfig.controllers.length) {
+        container.textContent = 'No authorized controllers. Unknown controllers cannot power on the PC.';
         return;
       }
-      
-      const statusDiv = document.getElementById('controllerStatus');
-      statusDiv.innerHTML = '🔄 REMOVING MAC LOCK...';
-      statusDiv.style.borderLeftColor = '#8899aa';
-      
+
+      controllerConfig.controllers.forEach(controller => {
+        const row = document.createElement('div');
+        row.style.marginBottom = '12px';
+        const details = document.createElement('span');
+        details.textContent = `${controller.label || 'Controller'} — ${controller.macAddress}`;
+        const remove = document.createElement('button');
+        remove.className = 'btn btn-red';
+        remove.style.marginLeft = '12px';
+        remove.textContent = 'REMOVE';
+        remove.onclick = () => removeController(controller.macAddress);
+        row.append(details, remove);
+        container.appendChild(row);
+      });
+    }
+
+    async function loadControllerConfig() {
       try {
-        const res = await fetch('/api/ps5/unlock', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'}
-        });
-        
-        const data = await res.json();
-        
-        if (res.ok) {
-          // Päivitä näyttö
-          document.getElementById('macAddressDisplay').innerText = '--:--:--:--:--:--';
-          
-          statusDiv.innerHTML = '🔓 ' + data.message;
-          statusDiv.style.borderLeftColor = '#aa5500';
-          
-          // Lataa konfiguraatio uudelleen
-          loadPS5();
-        } else {
-          statusDiv.innerHTML = '❌ ERROR: ' + (data.message || 'Unknown error');
-          statusDiv.style.borderLeftColor = '#aa0000';
-        }
+        const res = await fetch('/api/controllers/config');
+        controllerConfig = await res.json();
+        document.getElementById('controllerEnabled').checked = controllerConfig.enabled;
+        document.getElementById('triggerMode').value = controllerConfig.trigger.mode;
+        document.getElementById('triggerButton').value = controllerConfig.trigger.button;
+        document.getElementById('rearmMs').value = controllerConfig.trigger.rearmMs;
+        renderAuthorizedControllers();
       } catch (e) {
-        statusDiv.innerHTML = '❌ CONNECTION ERROR: ' + e.message;
-        statusDiv.style.borderLeftColor = '#aa0000';
-        console.error(e);
+        document.getElementById('controllerSaveStatus').textContent = '❌ ERROR LOADING CONTROLLER CONFIG';
       }
     }
-    
-    async function loadPS5() {
-      try {
-        const res = await fetch('/api/ps5/config');
-        const data = await res.json();
-        document.getElementById('ps5Enabled').checked = data.enabled || false;
-        
-        // Päivitä MAC-näyttö
-        const macDisplay = document.getElementById('macAddressDisplay');
-        const statusDiv = document.getElementById('controllerStatus');
-        
-        if (data.macAddress && data.macAddress.length > 0) {
-          macDisplay.innerText = data.macAddress;
-          statusDiv.innerHTML = '🔒 DEVICE LOCKED: Only this controller is allowed';
-          statusDiv.style.borderLeftColor = '#00d9ff';
-        } else {
-          macDisplay.innerText = '--:--:--:--:--:--';
-          statusDiv.innerHTML = '⚠️ NO MAC RESTRICTION - All controllers are allowed';
-          statusDiv.style.borderLeftColor = '#aa5500';
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    
-    async function savePS5() {
-      // Haetaan nykyinen MAC näytöltä (voi olla tyhjä)
-      const macText = document.getElementById('macAddressDisplay').innerText;
-      const macAddress = macText === '--:--:--:--:--:--' ? '' : macText;
-      
-      const config = {
-        enabled: document.getElementById('ps5Enabled').checked,
-        macAddress: macAddress,
-        autoConnect: false
+
+    async function saveControllerConfig() {
+      controllerConfig.enabled = document.getElementById('controllerEnabled').checked;
+      controllerConfig.trigger = {
+        mode: document.getElementById('triggerMode').value,
+        button: document.getElementById('triggerButton').value,
+        rearmMs: Number(document.getElementById('rearmMs').value)
       };
-      
-      document.getElementById('ps5Status').innerText = '💾 SAVING...';
-      
+      const status = document.getElementById('controllerSaveStatus');
+      status.textContent = '💾 SAVING...';
       try {
-        const res = await fetch('/api/ps5/config', {
+        const res = await fetch('/api/controllers/config', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(config)
+          body: JSON.stringify(controllerConfig)
         });
-        
-        const responseText = await res.text();
-        
-        if (res.ok) {
-          document.getElementById('ps5Status').innerHTML = '✅ SAVED!';
-          
-          // Päivitä status
-          const statusDiv = document.getElementById('controllerStatus');
-          if (macAddress.length > 0) {
-            statusDiv.innerHTML = '🔒 DEVICE LOCKED: Only this controller is allowed';
-            statusDiv.style.borderLeftColor = '#00d9ff';
-          } else {
-            statusDiv.innerHTML = '⚠️ NO MAC RESTRICTION - All controllers are allowed';
-            statusDiv.style.borderLeftColor = '#aa5500';
-          }
-        } else {
-          document.getElementById('ps5Status').innerHTML = '❌ ERROR: ' + responseText;
-        }
+        const text = await res.text();
+        status.textContent = res.ok ? '✅ SAVED' : '❌ ' + text;
+        if (res.ok) await loadControllerConfig();
       } catch (e) {
-        document.getElementById('ps5Status').innerHTML = '❌ CONNECTION ERROR: ' + e.message;
-        console.error(e);
+        status.textContent = '❌ CONNECTION ERROR: ' + e.message;
       }
     }
-    
-    // Päivitä status säännöllisesti
+
+    async function enrollDiscoveredController() {
+      const label = document.getElementById('controllerLabel').value.trim();
+      const res = await fetch('/api/controllers/enroll', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({label})
+      });
+      const text = await res.text();
+      document.getElementById('controllerSaveStatus').textContent =
+        res.ok ? '✅ CONTROLLER AUTHORIZED' : '❌ ' + text;
+      if (res.ok) await loadControllerConfig();
+    }
+
+    async function removeController(macAddress) {
+      if (!confirm(`Remove authorized controller ${macAddress}?`)) return;
+      const res = await fetch('/api/controllers/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({macAddress})
+      });
+      const text = await res.text();
+      document.getElementById('controllerSaveStatus').textContent =
+        res.ok ? '✅ CONTROLLER REMOVED' : '❌ ' + text;
+      if (res.ok) await loadControllerConfig();
+    }
+
     async function updateControllerStatus() {
       try {
-        const res = await fetch('/api/ps5/connected-mac');
-        const data = await res.json();
-        
-        const lockBtn = document.getElementById('lockBtn');
-        const currentMac = document.getElementById('macAddressDisplay').innerText;
-        
-        if (data.connected && data.macAddress) {
-          lockBtn.disabled = false;
-          if (currentMac !== data.macAddress && currentMac !== '--:--:--:--:--:--') {
-            // Näytetään että eri ohjain on lähellä
-            document.getElementById('controllerStatus').innerHTML = '📱 Different controller detected: ' + data.macAddress;
-          }
+        const [statusRes, discoveredRes] = await Promise.all([
+          fetch('/api/controllers/status'),
+          fetch('/api/controllers/discovered')
+        ]);
+        const status = await statusRes.json();
+        const discovered = await discoveredRes.json();
+        document.getElementById('controllerStatus').textContent =
+          `State: ${status.state}; Bluetooth: ${status.bluetoothRunning ? 'running' : 'stopped'}; Bluepad32: ${status.bluepad32Firmware || 'unknown'}`;
+
+        const discoveredElement = document.getElementById('discoveredController');
+        const enrollButton = document.getElementById('enrollBtn');
+        if (discovered.available) {
+          discoveredElement.textContent =
+            `${discovered.modelName || 'Unknown model'} | ${discovered.macAddress} | VID ${discovered.vendorId} / PID ${discovered.productId}`;
+          enrollButton.disabled = false;
         } else {
-          lockBtn.disabled = true;
+          discoveredElement.textContent = 'No controller discovered';
+          enrollButton.disabled = true;
         }
       } catch (e) {
         console.error(e);
@@ -466,7 +415,8 @@
     
     window.onload = function() {
       loadWiFiStatus();
-      loadPS5();
+      loadControllerConfig();
+      updateControllerStatus();
       setInterval(updateControllerStatus, 2000);
     };
   </script>
