@@ -2,6 +2,11 @@
 max_threads = 6
 max_depth = 1
 
+[agents.task_orchestrator]
+description = "Create task records and coordinate planning, implementation with tests, validation, and final testing as separately runnable phases."
+config_file = "agents/task-orchestrator.toml"
+nickname_candidates = ["Planner", "Scope", "Track"]
+
 [agents.power_firmware]
 description = "Own GPIO safety, button handling, PC monitoring, and power-state sequencing."
 config_file = "agents/power-firmware.toml"

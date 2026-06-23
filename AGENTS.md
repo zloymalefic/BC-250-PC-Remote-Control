@@ -25,6 +25,15 @@ This repository contains ESP32/Arduino firmware and a LittleFS-hosted web UI for
 
 ## Skills and delegation
 
+- Start every new work request by creating an explicit task record before planning or editing.
+- Run work through these phases by default: task creation, planning, implementation with tests for new code, validation, and final testing.
+- Allow each phase to be invoked independently when the user asks for only task creation, only planning, only implementation, only validation, or only testing.
+- In the task creation phase, capture the requested outcome, scope, affected surfaces, constraints, acceptance criteria, test obligations, and whether hardware or network access is required.
+- In the planning phase, break the task into ordered steps, choose the responsible agent or skill for each surface, identify required tests, and call out validation that cannot run locally.
+- In the implementation phase, make the scoped code changes and add or update deterministic tests covering new behavior before moving to validation.
+- In the validation phase, run the relevant static, contract, compile, browser, and host-side checks for the changed surfaces and report skipped hardware checks separately.
+- In the final testing phase, run the repository verification baseline where available, summarize pass/fail/skipped results, and list remaining hardware-only checks without claiming they ran.
+- Use `task_orchestrator` to coordinate the full pipeline or any independently requested phase.
 - Use `$bc250-firmware` for GPIO, buttons, PC monitoring, and power sequencing.
 - Use `$bc250-connectivity` for Wi-Fi, Bluepad32, LittleFS, OTA, and versioning.
 - Use `$bc250-gamepad-support` for generic controller architecture, identity, enrollment, trigger policies, and compatibility testing.
@@ -36,6 +45,7 @@ This repository contains ESP32/Arduino firmware and a LittleFS-hosted web UI for
 - Use `$bc250-wled-integration` when adapting behavior between the two repositories.
 - Use `$embedded-build-validation` to select build and test matrices across both projects.
 - Use `$embedded-security-review` for defensive review across both projects.
+- Delegate task creation and phase coordination to `task_orchestrator`.
 - Delegate to `power_firmware`, `platform_connectivity`, or `web_contract` for clear owned areas.
 - Delegate completed changes to `code_reviewer` for an independent, findings-first review.
 - Delegate test design and test infrastructure to `test_engineer`.

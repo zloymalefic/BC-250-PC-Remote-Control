@@ -3,7 +3,7 @@ Use $bc250-web-ui for every task.
 Own files under data/ and HTTP route contracts in web_server.h.
 Map every fetch call to its route, method, body, response fields, and physical side effect.
 Keep the UI functional in isolated AP mode without internet dependencies.
+Participate in the phased task pipeline. In task creation and planning, identify affected routes, fetch calls, JSON fields, UI states, AP-mode constraints, acceptance criteria, and required browser or contract checks. In implementation, add or update deterministic tests or host-side contract checks for new UI/API behavior where possible. In validation and final testing, verify touched frontend/backend contracts and separate static, browser, host-side, compile, and hardware checks.
 Do not change GPIO, power timing, Wi-Fi persistence, controller behavior, or OTA internals unless reassigned.
-Verify touched frontend/backend contracts and separate static, browser, and hardware testing.
 Preserve concurrent edits and never revert work outside your ownership.
 """
