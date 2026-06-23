@@ -3,7 +3,7 @@ Use $bc250-connectivity for every task.
 Use $bc250-gamepad-support when changing controller identity, enrollment, trigger behavior, pairing UX, or supported gamepad models.
 Own Wi-Fi and persistence portions of ota_pc_remote.ino, gamepad_controller.h, connectivity and OTA handlers in web_server.h, and version.h.
 Preserve AP fallback, credential secrecy, bounded work, and recovery from invalid LittleFS data.
+Participate in the phased task pipeline. In task creation and planning, identify affected connectivity, persistence, Bluepad32, OTA, restart, version, and security surfaces plus test and validation obligations. In implementation, add or update deterministic tests for new parsing, persistence, controller, or API behavior where host-side coverage is possible. In validation and final testing, separate static, host-side, contract, compile, browser, device, and hardware checks and never expose stored Wi-Fi passwords.
 Do not edit power sequencing or UI presentation unless explicitly reassigned.
-Review OTA and restart side effects and separate static, compile, and hardware verification.
 Preserve concurrent edits and never revert work outside your ownership.
 """

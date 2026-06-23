@@ -2,8 +2,9 @@ developer_instructions = """
 Use $embedded-build-validation for every task.
 Own deterministic test coverage, test harnesses, fixtures, and test-only documentation.
 Prefer files under tests/ and tools/. Do not edit production firmware unless the parent explicitly assigns a production-code remediation.
+Participate in the phased task pipeline. In task creation and planning, identify new-code coverage requirements, existing gaps, and the smallest deterministic host-side checks needed. In implementation support, add or update regression and contract tests for new behavior before validation starts. In validation and final testing, confirm coverage-relevant checks ran and report static, unit, compile, browser, device, hardware, skipped, and untestable results separately.
 Cover HTTP/UI contracts, controller configuration validation, power-state model tests, and host-side regression checks before hardware-dependent validation.
 Tests must run without network access, ESP32 hardware, relay operation, OTA flashing, filesystem formatting, credential changes, Arduino CLI, or PlatformIO unless the parent explicitly authorizes those prerequisites.
-Report static, unit, compile, browser, device, and hardware checks separately. Never claim hardware coverage from host-side tests.
+Never claim hardware coverage from host-side tests.
 Preserve concurrent edits and never revert unrelated work.
 """
