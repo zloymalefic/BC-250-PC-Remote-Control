@@ -27,6 +27,16 @@ bool apMode = false;
 
 ControllerConfig controllerConfig;
 
+struct LedState {
+    bool on = true;
+    uint8_t brightness = 128;
+    uint8_t red = 0;
+    uint8_t green = 217;
+    uint8_t blue = 255;
+};
+
+LedState ledState;
+
 // OPTIMOIDUT INTERVALLIT
 unsigned long lastPinRead = 0;
 const unsigned long pinReadInterval = 50;
@@ -63,6 +73,9 @@ void startForceShutdown();
 void startNormalShutdown();
 bool saveControllerConfig();
 bool updateControllerConfigFromJson(JsonObjectConst root, String& error);
+bool saveLedState();
+bool updateLedStateFromJson(JsonObjectConst root, String& error);
+void applyLedState();
 
 void setControllerBluetoothAllowed(bool allowed) {
     gamepadController.setPcAllowsBluetooth(allowed);
@@ -297,6 +310,107 @@ void loadControllerConfig() {
                   controllerConfig.triggerButton.c_str());
 }
 
+// ================ LED lighting state ================
+
+void applyLedState() {
+    // The current board exposes only the optional single-channel status LED.
+    // RGB and brightness are stored for the UI/API contract until a LED driver is wired.
+    digitalWrite(STATUS_LED_PIN, (ledState.on && ledState.brightness > 0) ? HIGH : LOW);
+}
+
+bool saveLedState() {
+    File file = LittleFS.open("/led_config.json", "w");
+    if (!file) {
+        Serial.println("LED config: failed to open file for writing");
+        return false;
+    }
+
+    StaticJsonDocument<256> doc;
+    doc["schema"] = 1;
+    doc["on"] = ledState.on;
+    doc["bri"] = ledState.brightness;
+    JsonArray rgb = doc.createNestedArray("rgb");
+    rgb.add(ledState.red);
+    rgb.add(ledState.green);
+    rgb.add(ledState.blue);
+
+    bool success = serializeJson(doc, file) > 0;
+    file.close();
+    return success;
+}
+
+bool updateLedStateFromJson(JsonObjectConst root, String& error) {
+    LedState next = ledState;
+
+    if (root.containsKey("on")) {
+        next.on = root["on"] | false;
+    }
+
+    if (root.containsKey("bri")) {
+        int brightness = root["bri"] | -1;
+        if (brightness < 0 || brightness > 255) {
+            error = "bri must be between 0 and 255";
+            return false;
+        }
+        next.brightness = static_cast<uint8_t>(brightness);
+    }
+
+    JsonArrayConst rgb = root["rgb"];
+    if (!rgb.isNull()) {
+        if (rgb.size() != 3) {
+            error = "rgb must contain three values";
+            return false;
+        }
+        int red = rgb[0] | -1;
+        int green = rgb[1] | -1;
+        int blue = rgb[2] | -1;
+        if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255) {
+            error = "rgb values must be between 0 and 255";
+            return false;
+        }
+        next.red = static_cast<uint8_t>(red);
+        next.green = static_cast<uint8_t>(green);
+        next.blue = static_cast<uint8_t>(blue);
+    }
+
+    ledState = next;
+    applyLedState();
+    return true;
+}
+
+void loadLedState() {
+    ledState = LedState();
+
+    if (!LittleFS.exists("/led_config.json")) {
+        applyLedState();
+        return;
+    }
+
+    File file = LittleFS.open("/led_config.json", "r");
+    if (!file) {
+        Serial.println("LED config: failed to open config; using defaults");
+        applyLedState();
+        return;
+    }
+
+    StaticJsonDocument<256> doc;
+    DeserializationError parseError = deserializeJson(doc, file);
+    file.close();
+    if (parseError || (doc["schema"] | 0) != 1) {
+        Serial.println("LED config: invalid or unsupported config; using defaults");
+        applyLedState();
+        return;
+    }
+
+    String validationError;
+    if (!updateLedStateFromJson(doc.as<JsonObjectConst>(), validationError)) {
+        ledState = LedState();
+        Serial.printf("LED config: %s; using defaults\n", validationError.c_str());
+        applyLedState();
+        return;
+    }
+}
+
 // ================ SETUP ================
 
 void setup() {
@@ -349,6 +463,9 @@ void setup() {
     Serial.println("Loading controller config...");
     loadControllerConfig();
     gamepadController.begin(!pcIsOn && powerState == POWER_IDLE);
+
+    Serial.println("Loading LED config...");
+    loadLedState();
 
     Serial.printf("Bluepad32 %s ready - waiting for controller pairing\n",
                   BP32.firmwareVersion());

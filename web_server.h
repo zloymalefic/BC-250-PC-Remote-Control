@@ -21,6 +21,7 @@ extern bool wifiConfigured;
 extern bool apMode;
 extern ControllerConfig controllerConfig;
 extern GamepadController gamepadController;
+extern LedState ledState;
 
 // Funktioprototyypit
 void saveWiFiConfig(String ssid, String pass);
@@ -30,10 +31,13 @@ void startNormalShutdown();
 void startForceShutdown();
 bool saveControllerConfig();
 bool updateControllerConfigFromJson(JsonObjectConst root, String& error);
+bool saveLedState();
+bool updateLedStateFromJson(JsonObjectConst root, String& error);
 
 String indexHtml = "";
 String updateHtml = "";
 String setupHtml = "";
+String ledHtml = "";
 String styleCss = "";
 bool filesLoaded = false;
 
@@ -67,6 +71,15 @@ void loadFiles() {
         Serial.println("  - setup.html loaded");
     } else {
         Serial.println("  - setup.html NOT FOUND!");
+    }
+
+    if (LittleFS.exists("/led.html")) {
+        File file = LittleFS.open("/led.html", "r");
+        ledHtml = file.readString();
+        file.close();
+        Serial.println("  - led.html loaded");
+    } else {
+        Serial.println("  - led.html NOT FOUND!");
     }
     
     if (LittleFS.exists("/style.css")) {
@@ -143,6 +156,11 @@ void setupWebServer() {
     // Setup-sivu
     server.on("/setup", []() {
         server.send(200, "text/html", setupHtml);
+    });
+
+    // LED lighting page
+    server.on("/led", []() {
+        server.send(200, "text/html", ledHtml);
     });
     
     // CSS-tyylit
@@ -255,6 +273,48 @@ void setupWebServer() {
             WiFi.scanDelete();
             server.send(200, "application/json", response);
         }
+    });
+
+    // API: LED lighting state
+    server.on("/api/led/state", HTTP_GET, []() {
+        StaticJsonDocument<256> doc;
+        doc["on"] = ledState.on;
+        doc["bri"] = ledState.brightness;
+        JsonArray rgb = doc.createNestedArray("rgb");
+        rgb.add(ledState.red);
+        rgb.add(ledState.green);
+        rgb.add(ledState.blue);
+
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    });
+
+    server.on("/api/led/state", HTTP_POST, []() {
+        if (!server.hasArg("plain")) {
+            server.send(400, "text/plain", "Body missing");
+            return;
+        }
+
+        StaticJsonDocument<256> doc;
+        DeserializationError parseError = deserializeJson(doc, server.arg("plain"));
+        if (parseError || !doc.is<JsonObject>()) {
+            server.send(400, "text/plain", "Invalid JSON");
+            return;
+        }
+
+        String validationError;
+        if (!updateLedStateFromJson(doc.as<JsonObjectConst>(), validationError)) {
+            server.send(400, "text/plain", validationError);
+            return;
+        }
+
+        if (!saveLedState()) {
+            server.send(500, "text/plain", "Failed to save LED state");
+            return;
+        }
+
+        server.send(200, "text/plain", "OK");
     });
 
     // API: Status
