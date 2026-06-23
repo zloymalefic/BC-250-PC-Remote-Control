@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BC-250 Power Controller - LED Lighting</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
+</head>
+
+<body>
+  <header class="header">
+    <a href="/" class="logo" aria-label="Steam Machine logo">
+      <img src="steam-machines.svg" alt="Steam Machines" width="180" height="50">
+    </a>
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
+      <a href="/">HOME</a>
+      <a href="/led">LED</a>
+      <a href="/update">UPDATE</a>
+      <a href="/setup">SETUP</a>
+    </nav>
+  </header>
+
+  <main class="home led-page">
+    <div class="home-content" role="region" aria-labelledby="led-heading">
+      <h1 id="led-heading">LED LIGHTING</h1>
+      <p class="subtitle">Basic lighting control</p>
+
+      <section class="led-control-panel" aria-label="LED lighting controls">
+        <div class="led-preview-wrap">
+          <div id="ledPreview" class="led-preview" aria-hidden="true"></div>
+          <div class="info-item led-state-item">
+            <span class="info-label">LIGHT STATE</span>
+            <span id="ledStateLabel" class="info-value">LOADING...</span>
+          </div>
+        </div>
+
+        <div class="led-form">
+          <label class="toggle-row" for="ledEnabled">
+            <span class="info-label">POWER</span>
+            <input id="ledEnabled" type="checkbox" role="switch" />
+          </label>
+
+          <label class="field-row" for="ledBrightness">
+            <span class="info-label">BRIGHTNESS</span>
+            <span id="brightnessValue" class="field-value">128</span>
+            <input id="ledBrightness" type="range" min="0" max="255" value="128" />
+          </label>
+
+          <label class="field-row" for="ledColor">
+            <span class="info-label">COLOR</span>
+            <input id="ledColor" class="color-input" type="color" value="#00d9ff" />
+          </label>
+
+          <div class="button-group led-actions" role="group" aria-label="LED commands">
+            <button id="saveLedBtn" class="btn power-on" type="button">
+              <i class='bx bx-save'></i> SAVE
+            </button>
+            <button id="refreshLedBtn" class="btn" type="button">
+              <i class='bx bx-refresh'></i> REFRESH
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="status-panel">
+        <p id="ledStatusMsg" role="status" aria-live="polite">LED CONTROL READY</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>© 2026 BC-250 POWER CONTROLLER</p>
+  </footer>
+
+  <script>
+const ledEnabled = document.getElementById('ledEnabled');
+const ledBrightness = document.getElementById('ledBrightness');
+const ledColor = document.getElementById('ledColor');
+const brightnessValue = document.getElementById('brightnessValue');
+const ledPreview = document.getElementById('ledPreview');
+const ledStateLabel = document.getElementById('ledStateLabel');
+const ledStatusMsg = document.getElementById('ledStatusMsg');
+const saveLedBtn = document.getElementById('saveLedBtn');
+const refreshLedBtn = document.getElementById('refreshLedBtn');
+
+function clampByte(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(255, Math.round(number)));
+}
+
+function hexToRgb(hex) {
+  const value = hex.replace('#', '');
+  return [
+    parseInt(value.slice(0, 2), 16),
+    parseInt(value.slice(2, 4), 16),
+    parseInt(value.slice(4, 6), 16),
+  ].map(clampByte);
+}
+
+function rgbToHex(rgb) {
+  return rgb.map((value) => clampByte(value).toString(16).padStart(2, '0')).join('');
+}
+
+function setStatus(message, isError = false) {
+  ledStatusMsg.textContent = message;
+  ledStatusMsg.className = isError ? 'error' : '';
+}
+
+function collectLedState() {
+  return {
+    on: ledEnabled.checked,
+    bri: clampByte(ledBrightness.value),
+    rgb: hexToRgb(ledColor.value),
+  };
+}
+
+function renderLedState(state) {
+  const rgb = Array.isArray(state.rgb) && state.rgb.length === 3
+    ? state.rgb.map(clampByte)
+    : [0, 217, 255];
+  const brightness = clampByte(state.bri);
+
+  ledEnabled.checked = Boolean(state.on);
+  ledBrightness.value = brightness;
+  brightnessValue.textContent = String(brightness);
+  ledColor.value = `#${rgbToHex(rgb)}`;
+
+  const opacity = ledEnabled.checked && brightness > 0 ? Math.max(brightness / 255, 0.08) : 0.12;
+  ledPreview.style.backgroundColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
+  ledPreview.style.boxShadow = ledEnabled.checked
+    ? `0 0 ${Math.max(12, brightness / 4)}px rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.55)`
+    : 'none';
+  ledStateLabel.textContent = ledEnabled.checked ? 'ON' : 'OFF';
+  ledStateLabel.style.color = ledEnabled.checked ? '#00ffa2' : '#ff4d6d';
+}
+
+async function loadLedState() {
+  setStatus('LOADING LED STATE...');
+  try {
+    const response = await fetch('/api/led/state');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const state = await response.json();
+    renderLedState(state);
+    setStatus('LED CONTROL READY');
+  } catch (error) {
+    console.error('LED state error:', error);
+    setStatus(`FAILED TO LOAD LED STATE: ${error.message}`, true);
+  }
+}
+
+async function saveLedState() {
+  const buttons = [saveLedBtn, refreshLedBtn];
+  buttons.forEach((button) => { button.disabled = true; });
+  setStatus('SAVING LED STATE...');
+
+  try {
+    const response = await fetch('/api/led/state', {
+      method: 'POST',
+      headers: {
+        'Accept': 'text/plain',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(collectLedState()),
+    });
+    if (!response.ok) throw new Error(await response.text() || `HTTP ${response.status}`);
+    setStatus('LED STATE SAVED');
+    await loadLedState();
+  } catch (error) {
+    console.error('LED save error:', error);
+    setStatus(`FAILED TO SAVE LED STATE: ${error.message}`, true);
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
+  }
+}
+
+['change', 'input'].forEach((eventName) => {
+  ledEnabled.addEventListener(eventName, () => renderLedState(collectLedState()));
+  ledBrightness.addEventListener(eventName, () => renderLedState(collectLedState()));
+  ledColor.addEventListener(eventName, () => renderLedState(collectLedState()));
+});
+
+saveLedBtn.addEventListener('click', saveLedState);
+refreshLedBtn.addEventListener('click', loadLedState);
+document.addEventListener('DOMContentLoaded', loadLedState);
+  </script>
+</body>
+</html>

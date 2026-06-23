@@ -213,6 +213,24 @@ def validate_persisted_controller_config(payload: dict) -> tuple[bool, str]:
     return validate_controller_config_for_web_post(payload)
 
 
+def validate_led_state_for_web_post(payload: dict) -> tuple[bool, str]:
+    """Mirror updateLedStateFromJson() byte-range checks."""
+
+    if "bri" in payload:
+        brightness = payload.get("bri", -1)
+        if brightness < 0 or brightness > 255:
+            return False, "bri must be between 0 and 255"
+
+    if "rgb" in payload:
+        rgb = payload.get("rgb")
+        if not isinstance(rgb, list) or len(rgb) != 3:
+            return False, "rgb must contain three values"
+        if any(value < 0 or value > 255 for value in rgb):
+            return False, "rgb values must be between 0 and 255"
+
+    return True, ""
+
+
 class WebContractTests(unittest.TestCase):
     def test_frontend_endpoint_uses_match_registered_routes_and_methods(self) -> None:
         routes = extract_routes()
@@ -235,6 +253,8 @@ class WebContractTests(unittest.TestCase):
             EndpointUse("data/index.html", "GET", "/api/status"),
             EndpointUse("data/index.html", "POST", "/power/on"),
             EndpointUse("data/index.html", "POST", "/power/off"),
+            EndpointUse("data/led.html", "GET", "/api/led/state"),
+            EndpointUse("data/led.html", "POST", "/api/led/state"),
             EndpointUse("data/setup.html", "GET", "/api/wifi/config"),
             EndpointUse("data/setup.html", "POST", "/api/wifi/config"),
             EndpointUse("data/setup.html", "GET", "/api/controllers/config"),
@@ -297,6 +317,22 @@ class WebContractTests(unittest.TestCase):
             "GET",
             ["available", "macAddress", "modelName", "vendorId", "productId"],
         )
+
+    def test_ui_consumed_led_json_fields_are_emitted(self) -> None:
+        assert_route_mentions_fields(
+            self,
+            "/api/led/state",
+            "GET",
+            ["on", "bri", "rgb"],
+        )
+
+    def test_led_frontend_uses_bounded_native_controls(self) -> None:
+        led_html = read_text(DATA_DIR / "led.html")
+
+        self.assertIn('type="range" min="0" max="255"', led_html)
+        self.assertIn('type="color"', led_html)
+        self.assertIn("clampByte", led_html)
+        self.assertIn("JSON.stringify(collectLedState())", led_html)
 
 
 class ControllerConfigSchemaTests(unittest.TestCase):
@@ -408,6 +444,35 @@ class ControllerConfigSchemaTests(unittest.TestCase):
                 self.assertEqual(case["valid"], ok)
                 if not ok:
                     self.assertEqual(case["error"], error)
+
+
+class LedStateSchemaTests(unittest.TestCase):
+    def test_web_post_accepts_valid_led_state(self) -> None:
+        payload = {"on": True, "bri": 128, "rgb": [0, 217, 255]}
+
+        self.assertEqual((True, ""), validate_led_state_for_web_post(payload))
+
+    def test_web_post_accepts_partial_led_state(self) -> None:
+        self.assertEqual((True, ""), validate_led_state_for_web_post({"on": False}))
+
+    def test_invalid_brightness_bounds_are_rejected(self) -> None:
+        for value in (-1, 256):
+            with self.subTest(bri=value):
+                ok, error = validate_led_state_for_web_post({"bri": value})
+                self.assertFalse(ok)
+                self.assertEqual("bri must be between 0 and 255", error)
+
+    def test_invalid_rgb_shape_is_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"rgb": [0, 217]})
+
+        self.assertFalse(ok)
+        self.assertEqual("rgb must contain three values", error)
+
+    def test_invalid_rgb_bounds_are_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"rgb": [0, 217, 256]})
+
+        self.assertFalse(ok)
+        self.assertEqual("rgb values must be between 0 and 255", error)
 
 
 if __name__ == "__main__":
