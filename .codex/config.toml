@@ -27,6 +27,11 @@ description = "Design and implement reproducible firmware, API-contract, and web
 config_file = "agents/test-engineer.toml"
 nickname_candidates = ["Probe", "Fixture", "Check"]
 
+[agents.coverage_engineer]
+description = "Own host-side regression coverage and contract tests."
+config_file = "agents/coverage-engineer.toml"
+nickname_candidates = ["Ada", "Grace", "Dijkstra"]
+
 [agents.security_tester]
 description = "Perform authorized defensive security review of the local firmware, HTTP API, OTA, persistence, and web UI."
 config_file = "agents/security-tester.toml"
