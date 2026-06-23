@@ -102,6 +102,18 @@ Without a physical ESP32 and BC-250 wiring, manual validation is limited to comp
 
 Invalid or unsupported controller configuration fails closed: no unknown controller is allowed to power on the PC.
 
+## Web UI and Wi-Fi setup
+
+The embedded web UI is served from LittleFS and is designed to work without internet access.
+
+1. On first boot, or when no saved Wi-Fi configuration exists, connect to the `BC-250-POWER-CONTROL` access point.
+2. Open http://192.168.4.1 in a browser.
+3. Use `/setup` to review the current Wi-Fi mode, scan nearby networks, enter the SSID and password, and save.
+4. The device stores the credentials and restarts. After reboot, connect your browser to the device on the configured network.
+5. Use `/` for power control, `/setup` for Wi-Fi and controller settings, and `/update` for firmware or filesystem OTA uploads.
+
+The Wi-Fi config API returns SSID and mode state only. It must not expose the stored password in the UI, logs, or API responses. If the configured network cannot be reached, the firmware falls back to AP mode at http://192.168.4.1.
+
 ## Host-side tests
 
 Run deterministic checks that do not require ESP32 hardware:

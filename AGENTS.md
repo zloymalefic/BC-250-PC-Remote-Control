@@ -22,6 +22,8 @@ This repository contains ESP32/Arduino firmware and a LittleFS-hosted web UI for
 - Treat `LittleFS.begin(true)` as destructive because it may format the filesystem.
 - Do not claim hardware validation unless tested on the ESP32 and BC-250 wiring.
 - Preserve unrelated user changes.
+- Start every task that will change files on a dedicated git branch before editing, unless the user explicitly asks for read-only analysis only.
+- Finish each file-changing task by committing the scoped changes, pushing the branch, and opening a pull request.
 
 ## Skills and delegation
 
