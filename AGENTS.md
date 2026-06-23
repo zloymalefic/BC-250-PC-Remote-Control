@@ -39,6 +39,7 @@ This repository contains ESP32/Arduino firmware and a LittleFS-hosted web UI for
 - Delegate to `power_firmware`, `platform_connectivity`, or `web_contract` for clear owned areas.
 - Delegate completed changes to `code_reviewer` for an independent, findings-first review.
 - Delegate test design and test infrastructure to `test_engineer`.
+- Delegate host-side regression coverage and contract tests to `coverage_engineer`.
 - Delegate authorized defensive analysis to `security_tester`; keep it read-only and local by default.
 - For cross-cutting changes, assign disjoint files and verify shared contracts explicitly.
 
@@ -53,6 +54,7 @@ This repository contains ESP32/Arduino firmware and a LittleFS-hosted web UI for
 ## Verification baseline
 
 - Run `git diff --check`.
+- Run `python3 tools/run_host_tests.py` when Python 3 is available.
 - Match every frontend endpoint to an existing route and HTTP method.
 - Match UI-consumed JSON fields to firmware responses.
 - Review idle, power-on, normal shutdown, forced shutdown, timeout, and reboot transitions.

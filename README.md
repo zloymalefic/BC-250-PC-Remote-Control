@@ -54,6 +54,16 @@ Install the `esp32_bluepad32` board package. This change was developed against t
 
 Invalid or unsupported controller configuration fails closed: no unknown controller is allowed to power on the PC.
 
+## Host-side tests
+
+Run deterministic checks that do not require ESP32 hardware:
+
+```sh
+python3 tools/run_host_tests.py
+```
+
+These tests cover frontend/API route consistency, UI-consumed JSON fields, Wi-Fi password non-exposure, and controller configuration validation. Firmware compilation and hardware validation still require the ESP32 Bluepad32 toolchain and connected test hardware.
+
 ## Notes
 
 - Wi-Fi AP mode can be slow. Default address: http://192.168.4.1

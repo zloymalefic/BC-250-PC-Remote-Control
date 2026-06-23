@@ -1,0 +1,68 @@
+[
+  {
+    "name": "disabled-default-connect-trigger",
+    "valid": true,
+    "payload": {
+      "enabled": false,
+      "trigger": {
+        "mode": "connect",
+        "button": "system",
+        "rearmMs": 5000
+      },
+      "controllers": []
+    }
+  },
+  {
+    "name": "enabled-button-trigger-with-authorized-controller",
+    "valid": true,
+    "payload": {
+      "enabled": true,
+      "trigger": {
+        "mode": "button",
+        "button": "start",
+        "rearmMs": 3000
+      },
+      "controllers": [
+        {
+          "macAddress": "aa:bb:cc:dd:ee:01",
+          "label": "Living Room Controller",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "invalid-trigger-mode",
+    "valid": false,
+    "error": "Unsupported trigger mode",
+    "payload": {
+      "enabled": true,
+      "trigger": {
+        "mode": "hold",
+        "button": "system",
+        "rearmMs": 5000
+      },
+      "controllers": []
+    }
+  },
+  {
+    "name": "invalid-mac-address",
+    "valid": false,
+    "error": "Invalid controller MAC address",
+    "payload": {
+      "enabled": true,
+      "trigger": {
+        "mode": "connect",
+        "button": "system",
+        "rearmMs": 5000
+      },
+      "controllers": [
+        {
+          "macAddress": "aa:bb:cc:dd:ee",
+          "label": "Short MAC",
+          "enabled": true
+        }
+      ]
+    }
+  }
+]
