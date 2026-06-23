@@ -3,7 +3,6 @@
 
 #include "pins.h"
 #include <Arduino.h>
-#include <Bluepad32.h>
 
 // Power-tilakoneen tilat
 enum PowerState {
@@ -32,6 +31,7 @@ extern const unsigned long pcStableDelay;
 // Power-tilakoneen muuttujat
 extern PowerState powerState;
 extern unsigned long powerStateStartTime;
+void setControllerBluetoothAllowed(bool allowed);
 
 // ================ GLOBAALIT DEBOUNCE-MUUTTUJAT ================
 bool debounceLastRaw = false;
@@ -199,7 +199,7 @@ void handlePowerStates() {
     switch (powerState) {
         case POWER_ON_START:
             Serial.println("POWER ON START - Setting relays");
-            btStop();
+            setControllerBluetoothAllowed(false);
             digitalWrite(OPTO_PIN, HIGH);
             digitalWrite(EXTRA_PIN, HIGH);
             digitalWrite(POWER_LED_PIN, HIGH);
@@ -223,7 +223,7 @@ void handlePowerStates() {
                 } else {
                     Serial.println("WARNING: PC did not power on! Turning relay OFF");
                     digitalWrite(OPTO_PIN, LOW);
-                    btStart();
+                    setControllerBluetoothAllowed(true);
                 }
                 powerState = POWER_IDLE;
             }
@@ -301,10 +301,10 @@ void handlePcStates() {
     if (filteredPcState != lastBTPcState) {
         if (filteredPcState == HIGH) {
             Serial.println("PC ON - DISABLE BLUETOOTH");
-            btStop();
+            setControllerBluetoothAllowed(false);
         } else {
             Serial.println("PC OFF - ENABLE BLUETOOTH");
-            btStart();
+            setControllerBluetoothAllowed(true);
         }
         lastBTPcState = filteredPcState;
     }

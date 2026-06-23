@@ -7,10 +7,8 @@
 
 #include "version.h"
 #include "pins.h"
-#include "ps5_simple.h"
-
-// TÄRKEÄÄ: Include pc_control.h ENSIN, jotta PowerState tunnetaan
 #include "pc_control.h"
+#include "gamepad_controller.h"
 
 // Globaalit muuttujat
 WebServer server(80);
@@ -27,11 +25,7 @@ String wifiPassword = "";
 bool wifiConfigured = false;
 bool apMode = false;
 
-// PS5-muuttujat
-String ps5MacAddress = "";
-bool ps5Enabled = false;
-bool ps5AutoConnect = false;
-unsigned long lastPS5ConnectionAttempt = 0;
+ControllerConfig controllerConfig;
 
 // OPTIMOIDUT INTERVALLIT
 unsigned long lastPinRead = 0;
@@ -60,27 +54,31 @@ const unsigned long pcStableDelay = 100;
 PowerState powerState = POWER_IDLE;
 unsigned long powerStateStartTime = 0;
 
-// PS5-luokka
-PS5Simple ps5Simple;
+GamepadController gamepadController;
 
 // ================ PROTOTYYPIT ================
 bool getStablePcState();
 void startPowerOn();
 void startForceShutdown();
 void startNormalShutdown();
-void savePS5Config(bool enabled, String mac, bool autoConnect);
+bool saveControllerConfig();
+bool updateControllerConfigFromJson(JsonObjectConst root, String& error);
+
+void setControllerBluetoothAllowed(bool allowed) {
+    gamepadController.setPcAllowsBluetooth(allowed);
+}
 
 // ================ CALLBACK-FUNKTIOT ================
 void onConnectedGamepad(GamepadPtr gp) {
     Serial.println("=== UUSI OHJAIN HAVAITTU ===");
     if (gp != nullptr) {
-        ps5Simple.onControllerConnected(gp);
+        gamepadController.onControllerConnected(gp);
     }
 }
 
 void onDisconnectedGamepad(GamepadPtr gp) {
     Serial.println("=== OHJAIN IRROTTUNUT ===");
-    ps5Simple.onControllerDisconnected(gp);
+    gamepadController.onControllerDisconnected(gp);
 }
 
 #include "web_server.h"
@@ -172,69 +170,163 @@ bool connectToWiFi() {
 
 
 
-// ================ PS5-funktiot ================
+// ================ Controller configuration ================
 
-void savePS5Config(bool enabled, String mac, bool autoConnect) {
-    File file = LittleFS.open("/ps5_config.json", "w");
-    if (!file) return;
-    
-    StaticJsonDocument<300> doc;
-    doc["enabled"] = enabled;
-    
-    if (mac.length() == 0 || mac == "00:00:00:00:00:00") {
-        doc["macAddress"] = "";
-    } else {
-        doc["macAddress"] = mac;
-    }
-    
-    doc["autoConnect"] = autoConnect;
-    
-    serializeJson(doc, file);
-    file.close();
-    
-    ps5Enabled = enabled;
-    ps5MacAddress = (mac.length() == 0 || mac == "00:00:00:00:00:00") ? "" : mac;
-    ps5AutoConnect = autoConnect;
-    
-    ps5Simple.setAllowedMac(ps5MacAddress);
+void resetControllerConfig() {
+    controllerConfig = ControllerConfig();
 }
 
-void loadPS5Config() {
-    if (!LittleFS.exists("/ps5_config.json")) {
-        ps5Enabled = false;
-        ps5MacAddress = "";
-        ps5AutoConnect = false;
-        ps5Simple.setAllowedMac("");
-        Serial.println("PS5: Ei konfiguraatiota - kaikki ohjaimet sallittu");
-        return;
+bool saveControllerConfig() {
+    File file = LittleFS.open("/controller_config.json", "w");
+    if (!file) {
+        Serial.println("Controller config: failed to open file for writing");
+        return false;
     }
-    
-    File file = LittleFS.open("/ps5_config.json", "r");
-    if (!file) return;
-    
-    StaticJsonDocument<300> doc;
-    DeserializationError error = deserializeJson(doc, file);
+
+    StaticJsonDocument<1536> doc;
+    doc["schema"] = CONTROLLER_CONFIG_SCHEMA;
+    doc["enabled"] = controllerConfig.enabled;
+    JsonObject trigger = doc.createNestedObject("trigger");
+    trigger["mode"] = controllerConfig.triggerMode;
+    trigger["button"] = controllerConfig.triggerButton;
+    trigger["rearmMs"] = controllerConfig.rearmMs;
+
+    JsonArray controllers = doc.createNestedArray("controllers");
+    for (uint8_t i = 0; i < controllerConfig.controllerCount; i++) {
+        JsonObject entry = controllers.createNestedObject();
+        entry["macAddress"] = controllerConfig.controllers[i].macAddress;
+        entry["label"] = controllerConfig.controllers[i].label;
+        entry["enabled"] = controllerConfig.controllers[i].enabled;
+    }
+
+    bool success = serializeJson(doc, file) > 0;
     file.close();
-    
-    if (error) {
-        ps5Enabled = false;
-        ps5MacAddress = "";
-        ps5AutoConnect = false;
-        ps5Simple.setAllowedMac("");
-        Serial.println("PS5: Konfiguraatio virheellinen - kaikki ohjaimet sallittu");
+    if (success) gamepadController.applyConfig();
+    return success;
+}
+
+bool updateControllerConfigFromJson(JsonObjectConst root, String& error) {
+    ControllerConfig next;
+    next.enabled = root["enabled"] | false;
+
+    JsonObjectConst trigger = root["trigger"];
+    next.triggerMode = trigger["mode"] | "connect";
+    next.triggerButton = trigger["button"] | "system";
+    next.rearmMs = trigger["rearmMs"] | 5000;
+
+    if (!isSupportedTriggerMode(next.triggerMode)) {
+        error = "Unsupported trigger mode";
+        return false;
+    }
+    if (!isSupportedTriggerButton(next.triggerButton)) {
+        error = "Unsupported trigger button";
+        return false;
+    }
+    if (next.rearmMs < 1000 || next.rearmMs > 60000) {
+        error = "rearmMs must be between 1000 and 60000";
+        return false;
+    }
+
+    JsonArrayConst controllers = root["controllers"];
+    if (!controllers.isNull()) {
+        for (JsonObjectConst item : controllers) {
+            if (next.controllerCount >= MAX_AUTHORIZED_CONTROLLERS) {
+                error = "Too many authorized controllers";
+                return false;
+            }
+
+            String macAddress = normalizeControllerMac(item["macAddress"] | "");
+            if (!isValidControllerMac(macAddress)) {
+                error = "Invalid controller MAC address";
+                return false;
+            }
+
+            bool duplicate = false;
+            for (uint8_t i = 0; i < next.controllerCount; i++) {
+                if (next.controllers[i].macAddress == macAddress) duplicate = true;
+            }
+            if (duplicate) {
+                error = "Duplicate controller MAC address";
+                return false;
+            }
+
+            AuthorizedController& entry = next.controllers[next.controllerCount++];
+            entry.macAddress = macAddress;
+            entry.label = String(item["label"] | "");
+            entry.enabled = item["enabled"] | true;
+        }
+    }
+
+    controllerConfig = next;
+    return true;
+}
+
+bool migrateLegacyPS5Config() {
+    if (!LittleFS.exists("/ps5_config.json")) return false;
+
+    File file = LittleFS.open("/ps5_config.json", "r");
+    if (!file) return false;
+
+    StaticJsonDocument<384> legacy;
+    DeserializationError parseError = deserializeJson(legacy, file);
+    file.close();
+    if (parseError) {
+        Serial.println("Controller config: legacy PS5 config is invalid; migration disabled");
+        resetControllerConfig();
+        return saveControllerConfig();
+    }
+
+    resetControllerConfig();
+    controllerConfig.enabled = legacy["enabled"] | false;
+    String macAddress = normalizeControllerMac(String(legacy["macAddress"] | ""));
+    if (isValidControllerMac(macAddress) && macAddress != "00:00:00:00:00:00") {
+        AuthorizedController& entry = controllerConfig.controllers[0];
+        entry.macAddress = macAddress;
+        entry.label = "Migrated PlayStation controller";
+        entry.enabled = true;
+        controllerConfig.controllerCount = 1;
+    }
+
+    Serial.println("Controller config: migrated /ps5_config.json");
+    return saveControllerConfig();
+}
+
+void loadControllerConfig() {
+    resetControllerConfig();
+    if (!LittleFS.exists("/controller_config.json")) {
+        if (!migrateLegacyPS5Config()) {
+            Serial.println("Controller config: no config found; controller service disabled");
+        }
         return;
     }
-    
-    ps5Enabled = doc["enabled"] | false;
-    ps5MacAddress = doc["macAddress"] | "";
-    ps5AutoConnect = doc["autoConnect"] | false;
-    
-    ps5Simple.setAllowedMac(ps5MacAddress);
-    
-    Serial.print("PS5: Lataus valmis - MAC: '");
-    Serial.print(ps5MacAddress);
-    Serial.print("', enabled: ");
-    Serial.println(ps5Enabled);
+
+    File file = LittleFS.open("/controller_config.json", "r");
+    if (!file) {
+        Serial.println("Controller config: failed to open config; controller service disabled");
+        return;
+    }
+
+    StaticJsonDocument<1536> doc;
+    DeserializationError parseError = deserializeJson(doc, file);
+    file.close();
+    if (parseError || (doc["schema"] | 0) != CONTROLLER_CONFIG_SCHEMA) {
+        Serial.println("Controller config: invalid or unsupported config; controller service disabled");
+        return;
+    }
+
+    String validationError;
+    if (!updateControllerConfigFromJson(doc.as<JsonObjectConst>(), validationError)) {
+        resetControllerConfig();
+        Serial.printf("Controller config: %s; controller service disabled\n",
+                      validationError.c_str());
+        return;
+    }
+
+    Serial.printf("Controller config loaded: enabled=%s, authorized=%u, trigger=%s/%s\n",
+                  controllerConfig.enabled ? "true" : "false",
+                  controllerConfig.controllerCount,
+                  controllerConfig.triggerMode.c_str(),
+                  controllerConfig.triggerButton.c_str());
 }
 
 // ================ SETUP ================
@@ -286,10 +378,12 @@ void setup() {
     BP32.setup(&onConnectedGamepad, &onDisconnectedGamepad);
     BP32.enableVirtualDevice(false);
     
-    Serial.println("Loading PS5 config...");
-    loadPS5Config();
-    
-    Serial.println("Bluepad32 ready - waiting for controller pairing");
+    Serial.println("Loading controller config...");
+    loadControllerConfig();
+    gamepadController.begin(!pcIsOn && powerState == POWER_IDLE);
+
+    Serial.printf("Bluepad32 %s ready - waiting for controller pairing\n",
+                  BP32.firmwareVersion());
     
     Serial.println("Setting up web server...");
     setupWebServer();
@@ -400,18 +494,8 @@ void loop() {
         lastServerHandle = now;
     }
     
-    // ================ PS5-OHJAIMEN KÄSITTELY ================
-    // Vain jos PC on sammunut ja idle-tilassa
-    if (!pcIsOn && powerState == POWER_IDLE) {
-        ps5Simple.handle();
-    } else {
-        // PC on päällä - älä käsittele PS5:sta, mutta päivitä Bluepad32
-        static unsigned long lastBP32Update = 0;
-        if (now - lastBP32Update >= 100) {
-            BP32.update();
-            lastBP32Update = now;
-        }
-    }
+    // ================ BLUETOOTH CONTROLLER ================
+    gamepadController.handle();
     
     // ================ PAINIKKEEN KÄSITTELY ================
     static unsigned long buttonPressStartTime = 0;
