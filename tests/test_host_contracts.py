@@ -269,6 +269,15 @@ class WebContractTests(unittest.TestCase):
             "Wi-Fi config API must not expose stored passwords.",
         )
 
+    def test_wifi_scan_ui_uses_bounded_dom_rendering(self) -> None:
+        setup_html = read_text(DATA_DIR / "setup.html")
+
+        self.assertIn("async function scanWiFi()", setup_html)
+        self.assertIn("renderNetworkList(networks)", setup_html)
+        self.assertIn("document.createElement('li')", setup_html)
+        self.assertIn("for (let attempt = 0; attempt < 6; attempt++)", setup_html)
+        self.assertNotIn("net.ssid.replace", setup_html)
+
     def test_ui_consumed_controller_json_fields_are_emitted(self) -> None:
         assert_route_mentions_fields(
             self,

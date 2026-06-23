@@ -112,7 +112,7 @@
       <div class="settings-section">
         <div id="wifiStatus" style="margin-bottom:20px;">LOADING STATUS...</div>
         
-        <button onclick="scanWiFi()" class="btn" style="width:100%; margin:10px 0;">📡 SCAN NETWORKS</button>
+        <button id="wifiScanButton" onclick="scanWiFi()" class="btn" style="width:100%; margin:10px 0;">📡 SCAN NETWORKS</button>
         
         <div id="networkList" style="margin:20px 0;"></div>
         
@@ -202,9 +202,65 @@
   </footer>
   
   <script>
+    function setWiFiMessage(elementId, message, isError = false) {
+      const element = document.getElementById(elementId);
+      element.textContent = message;
+      element.style.color = isError ? '#ff4d6d' : '';
+    }
+
+    function setSelectedSsid(ssid) {
+      document.getElementById('wifiSsid').value = ssid;
+    }
+
+    function renderNetworkList(networks) {
+      const container = document.getElementById('networkList');
+      container.replaceChildren();
+
+      if (!Array.isArray(networks) || networks.length === 0) {
+        container.textContent = '📭 NO NETWORKS FOUND';
+        return;
+      }
+
+      const heading = document.createElement('h3');
+      heading.style.marginBottom = '15px';
+      heading.style.fontFamily = 'Share Tech Mono';
+      heading.style.color = '#00d9ff';
+      heading.textContent = 'AVAILABLE NETWORKS:';
+
+      const list = document.createElement('ul');
+      list.style.listStyle = 'none';
+      list.style.padding = '0';
+
+      networks.forEach(net => {
+        const row = document.createElement('li');
+        row.style.padding = '12px';
+        row.style.borderBottom = '1px solid #2a2a3a';
+        row.style.cursor = 'pointer';
+        row.style.fontFamily = 'Share Tech Mono';
+        row.style.transition = 'all 0.3s';
+        row.onmouseover = () => { row.style.background = '#1a1a2a'; };
+        row.onmouseout = () => { row.style.background = 'transparent'; };
+        row.onclick = () => setSelectedSsid(net.ssid || '');
+
+        const ssid = document.createElement('strong');
+        ssid.textContent = net.ssid || '(hidden network)';
+
+        const signal = document.createElement('span');
+        signal.style.color = '#8899aa';
+        signal.style.float = 'right';
+        signal.textContent = `${net.rssi} dBm`;
+
+        row.append(net.encryption ? '🔒 ' : '🔓 ', ssid, signal);
+        list.appendChild(row);
+      });
+
+      container.append(heading, list);
+    }
+
     async function loadWiFiStatus() {
       try {
         const res = await fetch('/api/wifi/config');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         
         let status = '📶 ';
@@ -215,67 +271,58 @@
         } else {
           status += 'NOT CONFIGURED - ENTER WIFI DETAILS BELOW';
         }
-        document.getElementById('wifiStatus').innerText = status;
+        setWiFiMessage('wifiStatus', status);
         document.getElementById('wifiSsid').value = data.ssid || '';
       } catch (e) {
-        document.getElementById('wifiStatus').innerText = '❌ ERROR LOADING STATUS';
+        setWiFiMessage('wifiStatus', '❌ ERROR LOADING STATUS', true);
         console.error(e);
       }
     }
-    
+
     async function scanWiFi() {
-      document.getElementById('networkList').innerHTML = '🔄 SCANNING...';
-      
+      const scanButton = document.getElementById('wifiScanButton');
+      const networkList = document.getElementById('networkList');
+      scanButton.disabled = true;
+      networkList.textContent = '🔄 SCANNING...';
+
       try {
-        await fetch('/api/wifi/scan');
-        
-        setTimeout(async () => {
-          try {
-            const res = await fetch('/api/wifi/scan');
-            const networks = await res.json();
-            
-            if (networks.scanning) {
-              document.getElementById('networkList').innerHTML = '⏳ STILL SCANNING...';
-              return;
-            }
-            
-            if (networks.length === 0) {
-              document.getElementById('networkList').innerHTML = '📭 NO NETWORKS FOUND';
-              return;
-            }
-            
-            let html = '<h3 style="margin-bottom:15px; font-family: Share Tech Mono; color: #00d9ff;">AVAILABLE NETWORKS:</h3><ul style="list-style:none; padding:0;">';
-            networks.forEach(net => {
-              const encrypted = net.encryption ? '🔒' : '🔓';
-              html += `<li onclick="document.getElementById('wifiSsid').value='${net.ssid.replace(/'/g, "\\'")}'" style="padding:12px; border-bottom:1px solid #2a2a3a; cursor:pointer; font-family:Share Tech Mono; transition:all 0.3s;" onmouseover="this.style.background='#1a1a2a'" onmouseout="this.style.background='transparent'">
-                         ${encrypted} <strong>${net.ssid}</strong> 
-                         <span style="color:#8899aa; float:right;">${net.rssi} dBm</span>
-                       </li>`;
-            });
-            html += '</ul>';
-            document.getElementById('networkList').innerHTML = html;
-          } catch (e) {
-            document.getElementById('networkList').innerHTML = '❌ SCAN FAILED';
-            console.error(e);
+        const startRes = await fetch('/api/wifi/scan');
+        if (!startRes.ok) throw new Error(`HTTP ${startRes.status}`);
+
+        for (let attempt = 0; attempt < 6; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 1500 : 1000));
+          const res = await fetch('/api/wifi/scan');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const networks = await res.json();
+
+          if (!networks.scanning) {
+            renderNetworkList(networks);
+            return;
           }
-        }, 2000);
+
+          networkList.textContent = '⏳ STILL SCANNING...';
+        }
+
+        networkList.textContent = '⏳ SCAN IS STILL RUNNING. TRY AGAIN IN A MOMENT.';
       } catch (e) {
-        document.getElementById('networkList').innerHTML = '❌ SCAN FAILED';
+        networkList.textContent = '❌ SCAN FAILED: ' + e.message;
         console.error(e);
+      } finally {
+        scanButton.disabled = false;
       }
     }
     
     async function saveWiFi() {
       const ssid = document.getElementById('wifiSsid').value.trim();
       const password = document.getElementById('wifiPassword').value;
-      
+
       if (!ssid) {
-        document.getElementById('wifiSaveStatus').innerText = '❌ SSID IS REQUIRED!';
+        setWiFiMessage('wifiSaveStatus', '❌ SSID IS REQUIRED!', true);
         return;
       }
-      
-      document.getElementById('wifiSaveStatus').innerText = '💾 SAVING AND REBOOTING...';
-      
+
+      setWiFiMessage('wifiSaveStatus', '💾 SAVING AND REBOOTING...');
+
       try {
         const res = await fetch('/api/wifi/config', {
           method: 'POST',
@@ -284,17 +331,17 @@
         });
         
         const responseText = await res.text();
-        
+
         if (res.ok) {
-          document.getElementById('wifiSaveStatus').innerHTML = '✅ SAVED! REBOOTING IN 3 SECONDS...<br>CONNECT TO YOUR WIFI NETWORK AFTER REBOOT.';
+          setWiFiMessage('wifiSaveStatus', '✅ SAVED! REBOOTING IN 3 SECONDS. CONNECT TO YOUR WIFI NETWORK AFTER REBOOT.');
           setTimeout(() => {
             window.location.href = '/';
           }, 3000);
         } else {
-          document.getElementById('wifiSaveStatus').innerText = '❌ ERROR SAVING: ' + responseText;
+          setWiFiMessage('wifiSaveStatus', '❌ ERROR SAVING: ' + responseText, true);
         }
       } catch (e) {
-        document.getElementById('wifiSaveStatus').innerText = '❌ CONNECTION ERROR: ' + e.message;
+        setWiFiMessage('wifiSaveStatus', '❌ CONNECTION ERROR: ' + e.message, true);
         console.error(e);
       }
     }
