@@ -32,10 +32,10 @@ Own Bluepad32 callbacks and polling. It may request `startPowerOn()`, but it mus
 
 ## Migration target
 
-- `ps5_simple.h` -> neutral controller module.
-- `PS5Simple` -> `GamepadController`.
-- PS5 globals -> versioned `ControllerConfig`.
-- `/ps5_config.json` -> `/controller_config.json`.
-- `/api/ps5/*` -> `/api/controllers/*`.
+- Keep the controller module neutral.
+- Use `GamepadController` for Bluepad32 lifecycle and input handling.
+- Store controller settings in versioned `ControllerConfig`.
+- Use `/controller_config.json` for persisted controller settings.
+- Use `/api/controllers/*` for all controller HTTP endpoints.
 
-Keep legacy reads or API aliases for one migration release. Never maintain two writable sources of truth.
+Never maintain two writable sources of truth.

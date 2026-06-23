@@ -8,7 +8,7 @@ config_file = "agents/power-firmware.toml"
 nickname_candidates = ["Relay", "Ohm", "Pulse"]
 
 [agents.platform_connectivity]
-description = "Own Wi-Fi, Bluepad32/PS5, LittleFS persistence, OTA platform behavior, and versioning."
+description = "Own Wi-Fi, Bluepad32, LittleFS persistence, OTA platform behavior, and versioning."
 config_file = "agents/platform-connectivity.toml"
 nickname_candidates = ["Beacon", "Link", "Flash"]
 

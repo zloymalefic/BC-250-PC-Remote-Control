@@ -18,7 +18,7 @@ ESP32 and 2-channel 5V relay based remote control for a BC-250 ATX power supply.
 
 ## Supported controllers
 
-The implementation uses Bluepad32's normalized gamepad API instead of controller-specific PlayStation logic. Bluepad32 supports PlayStation, Xbox, Switch, Android, 8BitDo, and many generic HID gamepads.
+The implementation uses Bluepad32's normalized gamepad API instead of controller-specific logic. Bluepad32 supports Xbox, Switch, Android, 8BitDo, and many generic HID gamepads.
 
 8BitDo Ultimate 2 Bluetooth must be placed in a Bluetooth-capable mode. Its Bluetooth mode is intended for Switch-compatible operation, so Bluepad32 may report it as an 8BitDo controller, Switch Pro controller, or another compatible model. Windows-oriented 2.4 GHz and USB modes do not connect to the ESP32 Bluetooth receiver.
 
@@ -52,7 +52,7 @@ Install the `esp32_bluepad32` board package. This change was developed against t
 4. Authorize it explicitly and save the settings.
 5. Select either connection or normalized button press as the power-on trigger.
 
-Existing `/ps5_config.json` settings are migrated once to `/controller_config.json`. Invalid or unsupported configuration fails closed: no unknown controller is allowed to power on the PC.
+Invalid or unsupported controller configuration fails closed: no unknown controller is allowed to power on the PC.
 
 ## Notes
 

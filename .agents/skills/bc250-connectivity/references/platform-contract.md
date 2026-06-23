@@ -9,7 +9,6 @@ LittleFS is currently mounted more than once. Avoid accidental formatting and ma
 ## Persistence
 
 - `/wifi_config.json`: `ssid`, `password`.
-- Legacy `/ps5_config.json`: `enabled`, `macAddress`, `autoConnect`.
 - New controller work must migrate to a versioned neutral schema; see `$bc250-gamepad-support`.
 
 Use bounded ArduinoJson documents and validate required fields before replacing active configuration.

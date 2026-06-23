@@ -1,6 +1,6 @@
 ---
 name: bc250-gamepad-support
-description: Design, implement, migrate, and verify generic Bluetooth gamepad support for BC-250-PC-Remote-Control using Bluepad32. Use for replacing PS5-specific code, adding controllers such as 8BitDo, Switch, Xbox, PlayStation, Android, or generic HID gamepads, controller identity and enrollment, MAC allowlists, normalized button triggers, diagnostics, pairing UX, configuration migration, and controller compatibility testing.
+description: Design, implement, migrate, and verify generic Bluetooth gamepad support for BC-250-PC-Remote-Control using Bluepad32. Use for adding controllers such as 8BitDo, Switch, Xbox, Android, or generic HID gamepads, controller identity and enrollment, MAC allowlists, normalized button triggers, diagnostics, pairing UX, configuration migration, and controller compatibility testing.
 ---
 
 # BC-250 gamepad support
@@ -16,7 +16,7 @@ Keep controller-specific protocol details behind a generic identity, authorizati
    - Can Bluepad32 connect and parse the device?
    - Is the device authorized?
    - Which normalized event triggers power-on?
-5. Preserve current DualSense configuration through explicit schema and API migration.
+5. Preserve controller configuration through explicit schema and API migration when a migration path exists.
 6. Keep Bluetooth polling non-blocking and independent from the power state machine.
 7. Verify with real hardware before marking a controller as supported.
 
@@ -33,7 +33,7 @@ Keep controller-specific protocol details behind a generic identity, authorizati
 
 ## Verification
 
-- Test DualSense migration, one 8BitDo controller, one unauthorized controller, and an unknown/generic gamepad.
+- Test existing configuration handling, one 8BitDo controller, one unauthorized controller, and an unknown/generic gamepad.
 - Test reconnect, disconnect, held button, repeated button edge, two simultaneous controllers, disabled support, and busy power state.
 - Test malformed and legacy configuration.
 - Check every renamed API route against the setup UI.

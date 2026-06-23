@@ -261,42 +261,10 @@ bool updateControllerConfigFromJson(JsonObjectConst root, String& error) {
     return true;
 }
 
-bool migrateLegacyPS5Config() {
-    if (!LittleFS.exists("/ps5_config.json")) return false;
-
-    File file = LittleFS.open("/ps5_config.json", "r");
-    if (!file) return false;
-
-    StaticJsonDocument<384> legacy;
-    DeserializationError parseError = deserializeJson(legacy, file);
-    file.close();
-    if (parseError) {
-        Serial.println("Controller config: legacy PS5 config is invalid; migration disabled");
-        resetControllerConfig();
-        return saveControllerConfig();
-    }
-
-    resetControllerConfig();
-    controllerConfig.enabled = legacy["enabled"] | false;
-    String macAddress = normalizeControllerMac(String(legacy["macAddress"] | ""));
-    if (isValidControllerMac(macAddress) && macAddress != "00:00:00:00:00:00") {
-        AuthorizedController& entry = controllerConfig.controllers[0];
-        entry.macAddress = macAddress;
-        entry.label = "Migrated PlayStation controller";
-        entry.enabled = true;
-        controllerConfig.controllerCount = 1;
-    }
-
-    Serial.println("Controller config: migrated /ps5_config.json");
-    return saveControllerConfig();
-}
-
 void loadControllerConfig() {
     resetControllerConfig();
     if (!LittleFS.exists("/controller_config.json")) {
-        if (!migrateLegacyPS5Config()) {
-            Serial.println("Controller config: no config found; controller service disabled");
-        }
+        Serial.println("Controller config: no config found; controller service disabled");
         return;
     }
 

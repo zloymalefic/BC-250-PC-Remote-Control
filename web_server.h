@@ -451,133 +451,31 @@ void setupWebServer() {
         server.send(200, "text/plain", "OK");
     });
 
-    // Legacy PS5 compatibility API
-    server.on("/api/ps5/config", HTTP_GET, []() {
-        StaticJsonDocument<300> doc;
-        doc["macAddress"] = controllerConfig.controllerCount > 0
-            ? controllerConfig.controllers[0].macAddress : "";
-        doc["enabled"] = controllerConfig.enabled;
-        doc["autoConnect"] = false;
+    // LittleFS OTA update
+    server.on("/update-fs", HTTP_POST, []() {
+        server.sendHeader("Connection", "close");
+        server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        delay(1000);
+        ESP.restart();
+    }, []() {
+        HTTPUpload& upload = server.upload();
 
-        String response;
-        serializeJson(doc, response);
-        server.send(200, "application/json", response);
-    });
-    
-        // LittleFS OTA update
-        server.on("/update-fs", HTTP_POST, []() {
-            server.sendHeader("Connection", "close");
-            server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-            delay(1000);
-            ESP.restart();
-        }, []() {
-            HTTPUpload& upload = server.upload();
-            
-            if (upload.status == UPLOAD_FILE_START) {
-                Serial.printf("LittleFS Update: %s\n", upload.filename.c_str());
-                if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) {  // HUOM: U_SPIFFS!
-                    Update.printError(Serial);
-                }
-            } else if (upload.status == UPLOAD_FILE_WRITE) {
-                if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                    Update.printError(Serial);
-                }
-            } else if (upload.status == UPLOAD_FILE_END) {
-                if (Update.end(true)) {
-                    Serial.printf("LittleFS Update Success: %u bytes\n", upload.totalSize);
-                } else {
-                    Update.printError(Serial);
-                }
+        if (upload.status == UPLOAD_FILE_START) {
+            Serial.printf("LittleFS Update: %s\n", upload.filename.c_str());
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_SPIFFS)) {
+                Update.printError(Serial);
             }
-        });
-
-    // Legacy PS5 configuration compatibility
-    server.on("/api/ps5/config", HTTP_POST, []() {
-        if (!server.hasArg("plain")) {
-            server.send(400, "text/plain", "Body missing");
-            return;
-        }
-        
-        String body = server.arg("plain");
-        
-        StaticJsonDocument<300> doc;
-        DeserializationError error = deserializeJson(doc, body);
-        
-        if (error) {
-            server.send(400, "text/plain", "Invalid JSON");
-            return;
-        }
-        
-        ControllerConfig next;
-        next.enabled = doc["enabled"] | false;
-        String macAddress = normalizeControllerMac(String(doc["macAddress"] | ""));
-        if (macAddress.length() > 0 && macAddress != "00:00:00:00:00:00") {
-            if (!isValidControllerMac(macAddress)) {
-                server.send(400, "text/plain", "Invalid controller MAC address");
-                return;
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                Update.printError(Serial);
             }
-            next.controllers[0].macAddress = macAddress;
-            next.controllers[0].label = "Legacy API controller";
-            next.controllers[0].enabled = true;
-            next.controllerCount = 1;
+        } else if (upload.status == UPLOAD_FILE_END) {
+            if (Update.end(true)) {
+                Serial.printf("LittleFS Update Success: %u bytes\n", upload.totalSize);
+            } else {
+                Update.printError(Serial);
+            }
         }
-        controllerConfig = next;
-        if (!saveControllerConfig()) {
-            server.send(500, "text/plain", "Failed to save controller config");
-            return;
-        }
-        server.send(200, "text/plain", "OK");
-    });
-
-    server.on("/api/ps5/status", HTTP_GET, []() {
-        StaticJsonDocument<300> doc;
-        doc["state"] = !controllerConfig.enabled ? "disabled" :
-                       (gamepadController.isConnected() ? "connected" : "disconnected");
-        doc["macAddress"] = controllerConfig.controllerCount > 0
-            ? controllerConfig.controllers[0].macAddress : "";
-        doc["btAllowed"] = !getStablePcState() && powerState == POWER_IDLE;
-        doc["connectedMac"] = gamepadController.isConnected()
-            ? gamepadController.getActiveIdentity().macAddress : "";
-
-        String response;
-        serializeJson(doc, response);
-        server.send(200, "application/json", response);
-    });
-
-    server.on("/api/ps5/connected-mac", HTTP_GET, []() {
-        StaticJsonDocument<300> doc;
-        if (gamepadController.hasLastSeenIdentity()) {
-            GamepadIdentity identity = gamepadController.getLastSeenIdentity();
-            doc["connected"] = gamepadController.isConnected();
-            doc["macAddress"] = identity.macAddress;
-            doc["modelName"] = identity.modelName;
-            doc["note"] = gamepadController.isConnected()
-                ? "Controller connected" : "Last discovered controller";
-        } else {
-            doc["connected"] = false;
-            doc["macAddress"] = "";
-            doc["note"] = "No controller discovered";
-        }
-        
-        String response;
-        serializeJson(doc, response);
-        server.send(200, "application/json", response);
-    }); 
-
-    server.on("/api/ps5/unlock", HTTP_POST, []() {
-        gamepadController.clearAuthorized();
-        if (!saveControllerConfig()) {
-            server.send(500, "text/plain", "Failed to save controller config");
-            return;
-        }
-
-        StaticJsonDocument<160> doc;
-        doc["status"] = "ok";
-        doc["message"] = "Authorized controller list cleared; enrollment is required";
-        
-        String response;
-        serializeJson(doc, response);
-        server.send(200, "application/json", response);
     });
 
     // 404 - Not found
