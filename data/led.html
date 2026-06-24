@@ -39,6 +39,10 @@
               <span class="info-label">CHANNELS</span>
               <span id="channelSummary" class="info-value">--</span>
             </div>
+            <div class="info-item led-state-item">
+              <span class="info-label">POWER DRIVER</span>
+              <span id="powerDriverSummary" class="info-value">--</span>
+            </div>
           </div>
         </div>
 
@@ -84,6 +88,7 @@ const brightnessValue = document.getElementById('brightnessValue');
 const ledPreview = document.getElementById('ledPreview');
 const ledStateLabel = document.getElementById('ledStateLabel');
 const channelSummary = document.getElementById('channelSummary');
+const powerDriverSummary = document.getElementById('powerDriverSummary');
 const ledStatusMsg = document.getElementById('ledStatusMsg');
 const channelControls = document.getElementById('channelControls');
 const saveLedBtn = document.getElementById('saveLedBtn');
@@ -275,7 +280,7 @@ function renderPreview(channels, brightness, enabled) {
   });
 }
 
-function updateSummary(channels, brightness, enabled) {
+function updateSummary(channels, brightness, enabled, power = null) {
   brightnessValue.textContent = String(brightness);
   channelControls.querySelectorAll('.channel-card').forEach((card) => {
     const pixels = card.querySelector('[data-field="pixels"]');
@@ -291,6 +296,20 @@ function updateSummary(channels, brightness, enabled) {
   ledStateLabel.textContent = enabled ? 'ON' : 'OFF';
   ledStateLabel.style.color = enabled ? '#00ffa2' : '#ff4d6d';
   channelSummary.textContent = `${activeChannels}/${channels.length} - ${totalPixels} LED`;
+
+  if (!power || !power.configured) {
+    powerDriverSummary.textContent = 'DISABLED';
+    powerDriverSummary.style.color = '#8899aa';
+  } else if (power.enabled && power.ready) {
+    powerDriverSummary.textContent = `GPIO ${power.pin} ON`;
+    powerDriverSummary.style.color = '#00ffa2';
+  } else if (power.enabled) {
+    powerDriverSummary.textContent = `GPIO ${power.pin} SETTLING`;
+    powerDriverSummary.style.color = '#00d9ff';
+  } else {
+    powerDriverSummary.textContent = `GPIO ${power.pin} OFF`;
+    powerDriverSummary.style.color = '#ff4d6d';
+  }
 }
 
 function updateLivePreview() {
@@ -318,7 +337,7 @@ function renderLedState(state) {
   brightnessValue.textContent = String(brightness);
   renderChannelControls(channels);
   renderPreview(channels, brightness, ledEnabled.checked);
-  updateSummary(channels, brightness, ledEnabled.checked);
+  updateSummary(channels, brightness, ledEnabled.checked, state.power);
 }
 
 async function loadLedState() {

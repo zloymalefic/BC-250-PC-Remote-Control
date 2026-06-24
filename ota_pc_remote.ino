@@ -9,6 +9,7 @@
 #include "pins.h"
 #include "pc_control.h"
 #include "gamepad_controller.h"
+#include "led_power_driver.h"
 
 // Globaalit muuttujat
 WebServer server(80);
@@ -59,6 +60,7 @@ struct LedState {
 };
 
 LedState ledState;
+LedPowerDriver ledPowerDriver;
 
 // OPTIMOIDUT INTERVALLIT
 unsigned long lastPinRead = 0;
@@ -343,15 +345,17 @@ bool isSupportedLedEffect(const String& effect) {
 }
 
 void applyLedState() {
-    // The current board exposes only the optional single-channel status LED.
-    // Channel colors/effects are stored for the UI/API contract until an ARGB driver is wired.
     bool anyChannelEnabled = false;
     for (uint8_t i = 0; i < LED_CHANNEL_COUNT; i++) {
         if (ledState.channels[i].enabled && ledState.channels[i].pixelCount > 0) {
             anyChannelEnabled = true;
         }
     }
-    digitalWrite(STATUS_LED_PIN, (ledState.on && ledState.brightness > 0 && anyChannelEnabled) ? HIGH : LOW);
+    bool requestedPower = ledState.on && ledState.brightness > 0 && anyChannelEnabled;
+    ledPowerDriver.setEnabled(requestedPower);
+
+    // STATUS_LED_PIN remains a local indication of requested LED power state.
+    digitalWrite(STATUS_LED_PIN, requestedPower ? HIGH : LOW);
 }
 
 void writeLedStateJson(JsonDocument& doc) {
@@ -360,6 +364,14 @@ void writeLedStateJson(JsonDocument& doc) {
     doc["bri"] = ledState.brightness;
     doc["channelCount"] = LED_CHANNEL_COUNT;
     doc["maxPixelsPerChannel"] = LED_MAX_PIXELS_PER_CHANNEL;
+    JsonObject power = doc.createNestedObject("power");
+    power["configured"] = ledPowerDriver.isConfigured();
+    power["pin"] = ledPowerDriver.pin();
+    power["activeHigh"] = ledPowerDriver.activeHigh();
+    power["enabled"] = ledPowerDriver.isOutputEnabled();
+    power["requested"] = ledPowerDriver.isDesiredEnabled();
+    power["ready"] = ledPowerDriver.isReady(millis());
+    power["settleMs"] = ledPowerDriver.settleMs();
 
     JsonArray effects = doc.createNestedArray("supportedEffects");
     for (uint8_t i = 0; i < LED_EFFECT_COUNT; i++) {
@@ -562,6 +574,12 @@ void setup() {
     
     initPins();
     Serial.println("Pins initialized");
+    ledPowerDriver.begin();
+    Serial.printf("LED power driver: %s (pin=%d, active=%s, settle=%lums)\n",
+                  ledPowerDriver.isConfigured() ? "configured" : "disabled",
+                  ledPowerDriver.pin(),
+                  ledPowerDriver.activeHigh() ? "HIGH" : "LOW",
+                  ledPowerDriver.settleMs());
     
     Serial.print("PC_MONITOR_PIN (14): ");
     Serial.println(digitalRead(PC_MONITOR_PIN) ? "HIGH" : "LOW");
