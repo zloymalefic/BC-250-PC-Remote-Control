@@ -5,7 +5,7 @@
 
 ESP32 and 2-channel 5V relay based remote control for a BC-250 ATX power supply. The firmware supports the web interface, physical power button, OTA updates, and Bluetooth gamepads through Bluepad32.
 
-<img width="909" height="541" alt="wires" src="https://github.com/user-attachments/assets/8f6ec507-48f0-44cf-aa08-43292f0b47fc" />
+![BC-250 ESP32 wiring with optional LED power gate](docs/wiring-led.svg)
 
 ## Key features
 
@@ -23,8 +23,6 @@ The PC power-control wiring stays isolated from the optional LED lighting power
 gate. Do not power LED strips or fan lighting directly from an ESP32 GPIO.
 Use a MOSFET or load switch sized for the LED current, a fused external 5 V LED
 supply, and a shared ground with the ESP32.
-
-![BC-250 ESP32 wiring with optional LED power gate](docs/wiring-led.svg)
 
 ```text
 BC-250 / ATX power control
