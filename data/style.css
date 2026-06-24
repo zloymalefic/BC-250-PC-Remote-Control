@@ -293,7 +293,7 @@ body::before {
 
 .led-control-panel {
   display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr);
+  grid-template-columns: minmax(260px, 0.75fr) minmax(320px, 1.25fr);
   gap: 2rem;
   background: var(--surface-color);
   border: 2px solid var(--border-color);
@@ -311,21 +311,90 @@ body::before {
 
 .led-preview {
   width: 100%;
-  aspect-ratio: 1;
-  min-height: 220px;
+  min-height: 260px;
   border: 2px solid var(--border-color);
   border-radius: 8px;
-  background: rgba(0, 217, 255, 0.5);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  background: #0a0a0f;
+  transition: box-shadow 0.2s ease;
+}
+
+.led-strip-preview {
+  display: grid;
+  gap: 1rem;
+  align-content: center;
+  padding: 1.25rem;
+}
+
+.led-preview-channel {
+  width: 100%;
+  min-height: 72px;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  background-size: 200% 100%;
+  box-shadow: 0 0 24px rgba(0, 217, 255, 0.16);
+}
+
+.led-preview-channel.is-animated {
+  animation: ledPreviewMotion 4s linear infinite;
+}
+
+@keyframes ledPreviewMotion {
+  from { background-position: 0% 50%; }
+  to { background-position: 200% 50%; }
 }
 
 .led-state-item {
   margin: 0;
 }
 
+.led-summary-grid {
+  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .led-form {
   display: grid;
   gap: 1.5rem;
+}
+
+.channel-controls {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.channel-card {
+  display: grid;
+  gap: 1rem;
+  background: var(--surface-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.channel-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.channel-card h2 {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.2rem;
+  color: var(--accent-primary);
+  letter-spacing: 2px;
+}
+
+.compact-toggle {
+  display: inline-flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.compact-toggle input[type="checkbox"] {
+  width: 28px;
+  height: 28px;
+  accent-color: var(--accent-success);
 }
 
 .toggle-row,
@@ -358,6 +427,24 @@ body::before {
 .field-row input[type="range"] {
   width: 100%;
   accent-color: var(--accent-primary);
+}
+
+.field-row select {
+  width: 100%;
+  min-height: 48px;
+  background: #0a0a0f;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+  padding: 0.75rem;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .color-input {
@@ -473,6 +560,11 @@ body::before {
 
   .led-preview {
     min-height: 180px;
+  }
+
+  .led-summary-grid,
+  .color-grid {
+    grid-template-columns: 1fr;
   }
 
   .led-actions {

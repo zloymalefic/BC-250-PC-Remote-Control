@@ -33,6 +33,7 @@ bool saveControllerConfig();
 bool updateControllerConfigFromJson(JsonObjectConst root, String& error);
 bool saveLedState();
 bool updateLedStateFromJson(JsonObjectConst root, String& error);
+void writeLedStateJson(JsonDocument& doc);
 
 String indexHtml = "";
 String updateHtml = "";
@@ -277,13 +278,8 @@ void setupWebServer() {
 
     // API: LED lighting state
     server.on("/api/led/state", HTTP_GET, []() {
-        StaticJsonDocument<256> doc;
-        doc["on"] = ledState.on;
-        doc["bri"] = ledState.brightness;
-        JsonArray rgb = doc.createNestedArray("rgb");
-        rgb.add(ledState.red);
-        rgb.add(ledState.green);
-        rgb.add(ledState.blue);
+        StaticJsonDocument<1536> doc;
+        writeLedStateJson(doc);
 
         String response;
         serializeJson(doc, response);
@@ -296,7 +292,7 @@ void setupWebServer() {
             return;
         }
 
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<1536> doc;
         DeserializationError parseError = deserializeJson(doc, server.arg("plain"));
         if (parseError || !doc.is<JsonObject>()) {
             server.send(400, "text/plain", "Invalid JSON");

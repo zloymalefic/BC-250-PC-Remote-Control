@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WEB_SERVER = REPO_ROOT / "web_server.h"
 DATA_DIR = REPO_ROOT / "data"
 GAMEPAD_CONTROLLER = REPO_ROOT / "gamepad_controller.h"
+FIRMWARE = REPO_ROOT / "ota_pc_remote.ino"
 
 
 @dataclass(frozen=True, order=True)
@@ -164,6 +165,9 @@ SUPPORTED_TRIGGER_BUTTONS = {
 }
 MAX_AUTHORIZED_CONTROLLERS = 4
 CONTROLLER_CONFIG_SCHEMA = 1
+LED_CHANNEL_COUNT = 2
+LED_MAX_PIXELS_PER_CHANNEL = 50
+SUPPORTED_LED_EFFECTS = {"static", "breathing", "colorCycle", "rainbow", "sequential"}
 
 
 def normalize_controller_mac(value: object) -> str:
@@ -214,7 +218,7 @@ def validate_persisted_controller_config(payload: dict) -> tuple[bool, str]:
 
 
 def validate_led_state_for_web_post(payload: dict) -> tuple[bool, str]:
-    """Mirror updateLedStateFromJson() byte-range checks."""
+    """Mirror updateLedStateFromJson() validation checks."""
 
     if "bri" in payload:
         brightness = payload.get("bri", -1)
@@ -227,6 +231,39 @@ def validate_led_state_for_web_post(payload: dict) -> tuple[bool, str]:
             return False, "rgb must contain three values"
         if any(value < 0 or value > 255 for value in rgb):
             return False, "rgb values must be between 0 and 255"
+
+    if "channels" in payload:
+        channels = payload.get("channels")
+        if not isinstance(channels, list):
+            return False, "invalid LED channels"
+        if len(channels) > LED_CHANNEL_COUNT:
+            return False, "too many LED channels"
+
+        for channel in channels:
+            channel_id = channel.get("id", 0)
+            if channel_id < 1 or channel_id > LED_CHANNEL_COUNT:
+                return False, "invalid LED channel id"
+
+            if "pixels" in channel:
+                pixels = channel.get("pixels", -1)
+                if pixels < 0 or pixels > LED_MAX_PIXELS_PER_CHANNEL:
+                    return False, "pixels must be between 0 and 50"
+
+            if "effect" in channel and channel.get("effect") not in SUPPORTED_LED_EFFECTS:
+                return False, "unsupported LED effect"
+
+            for field in ("color", "secondaryColor"):
+                if field in channel:
+                    color = channel.get(field)
+                    if not isinstance(color, list) or len(color) != 3:
+                        return False, f"{field} must contain three values"
+                    if any(value < 0 or value > 255 for value in color):
+                        return False, f"{field} values must be between 0 and 255"
+
+            if "speed" in channel:
+                speed = channel.get("speed", -1)
+                if speed < 1 or speed > 100:
+                    return False, "speed must be between 1 and 100"
 
     return True, ""
 
@@ -319,12 +356,34 @@ class WebContractTests(unittest.TestCase):
         )
 
     def test_ui_consumed_led_json_fields_are_emitted(self) -> None:
-        assert_route_mentions_fields(
-            self,
-            "/api/led/state",
-            "GET",
-            ["on", "bri", "rgb"],
-        )
+        self.assertIn("writeLedStateJson(doc)", route_block("/api/led/state", "GET"))
+        firmware_text = read_text(FIRMWARE)
+        for field in (
+            "schema",
+            "on",
+            "bri",
+            "channelCount",
+            "maxPixelsPerChannel",
+            "supportedEffects",
+            "channels",
+            "id",
+            "enabled",
+            "pixels",
+            "effect",
+            "color",
+            "secondaryColor",
+            "speed",
+            "reverse",
+        ):
+            field_patterns = (
+                f'["{field}"]',
+                f'createNestedArray("{field}")',
+                f'createNestedObject("{field}")',
+            )
+            self.assertTrue(
+                any(pattern in firmware_text for pattern in field_patterns),
+                msg=f"LED state serializer does not appear to emit {field!r}",
+            )
 
     def test_led_frontend_uses_bounded_native_controls(self) -> None:
         led_html = read_text(DATA_DIR / "led.html")
@@ -332,6 +391,7 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('type="range" min="0" max="255"', led_html)
         self.assertIn('type="color"', led_html)
         self.assertIn("clampByte", led_html)
+        self.assertIn("channelTemplate", led_html)
         self.assertIn("JSON.stringify(collectLedState())", led_html)
 
 
@@ -448,12 +508,40 @@ class ControllerConfigSchemaTests(unittest.TestCase):
 
 class LedStateSchemaTests(unittest.TestCase):
     def test_web_post_accepts_valid_led_state(self) -> None:
-        payload = {"on": True, "bri": 128, "rgb": [0, 217, 255]}
+        payload = {
+            "on": True,
+            "bri": 128,
+            "channels": [
+                {
+                    "id": 1,
+                    "enabled": True,
+                    "pixels": 50,
+                    "effect": "rainbow",
+                    "color": [0, 217, 255],
+                    "secondaryColor": [255, 77, 109],
+                    "speed": 75,
+                    "reverse": False,
+                },
+                {
+                    "id": 2,
+                    "enabled": True,
+                    "pixels": 24,
+                    "effect": "sequential",
+                    "color": [255, 77, 109],
+                    "secondaryColor": [0, 255, 162],
+                    "speed": 25,
+                    "reverse": True,
+                },
+            ],
+        }
 
         self.assertEqual((True, ""), validate_led_state_for_web_post(payload))
 
     def test_web_post_accepts_partial_led_state(self) -> None:
         self.assertEqual((True, ""), validate_led_state_for_web_post({"on": False}))
+
+    def test_web_post_accepts_legacy_rgb_state(self) -> None:
+        self.assertEqual((True, ""), validate_led_state_for_web_post({"rgb": [0, 217, 255]}))
 
     def test_invalid_brightness_bounds_are_rejected(self) -> None:
         for value in (-1, 256):
@@ -473,6 +561,42 @@ class LedStateSchemaTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertEqual("rgb values must be between 0 and 255", error)
+
+    def test_invalid_channel_id_is_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"channels": [{"id": 3}]})
+
+        self.assertFalse(ok)
+        self.assertEqual("invalid LED channel id", error)
+
+    def test_invalid_channels_shape_is_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"channels": {"id": 1}})
+
+        self.assertFalse(ok)
+        self.assertEqual("invalid LED channels", error)
+
+    def test_invalid_channel_pixel_count_is_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"channels": [{"id": 1, "pixels": 51}]})
+
+        self.assertFalse(ok)
+        self.assertEqual("pixels must be between 0 and 50", error)
+
+    def test_invalid_channel_effect_is_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"channels": [{"id": 1, "effect": "sparkles"}]})
+
+        self.assertFalse(ok)
+        self.assertEqual("unsupported LED effect", error)
+
+    def test_invalid_channel_color_is_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"channels": [{"id": 1, "color": [0, 217]}]})
+
+        self.assertFalse(ok)
+        self.assertEqual("color must contain three values", error)
+
+    def test_invalid_channel_speed_is_rejected(self) -> None:
+        ok, error = validate_led_state_for_web_post({"channels": [{"id": 1, "speed": 0}]})
+
+        self.assertFalse(ok)
+        self.assertEqual("speed must be between 1 and 100", error)
 
 
 if __name__ == "__main__":

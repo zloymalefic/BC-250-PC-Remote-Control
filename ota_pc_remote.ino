@@ -27,12 +27,35 @@ bool apMode = false;
 
 ControllerConfig controllerConfig;
 
-struct LedState {
-    bool on = true;
-    uint8_t brightness = 128;
+const uint8_t LED_CHANNEL_COUNT = 2;
+const uint8_t LED_MAX_PIXELS_PER_CHANNEL = 50;
+const uint8_t LED_EFFECT_COUNT = 5;
+const char* const LED_EFFECTS[LED_EFFECT_COUNT] = {
+    "static",
+    "breathing",
+    "colorCycle",
+    "rainbow",
+    "sequential"
+};
+
+struct LedChannelState {
+    bool enabled = true;
+    uint8_t pixelCount = 24;
+    String effect = "static";
     uint8_t red = 0;
     uint8_t green = 217;
     uint8_t blue = 255;
+    uint8_t secondaryRed = 255;
+    uint8_t secondaryGreen = 77;
+    uint8_t secondaryBlue = 109;
+    uint8_t speed = 50;
+    bool reverse = false;
+};
+
+struct LedState {
+    bool on = true;
+    uint8_t brightness = 128;
+    LedChannelState channels[LED_CHANNEL_COUNT];
 };
 
 LedState ledState;
@@ -312,10 +335,56 @@ void loadControllerConfig() {
 
 // ================ LED lighting state ================
 
+bool isSupportedLedEffect(const String& effect) {
+    for (uint8_t i = 0; i < LED_EFFECT_COUNT; i++) {
+        if (effect == LED_EFFECTS[i]) return true;
+    }
+    return false;
+}
+
 void applyLedState() {
     // The current board exposes only the optional single-channel status LED.
-    // RGB and brightness are stored for the UI/API contract until a LED driver is wired.
-    digitalWrite(STATUS_LED_PIN, (ledState.on && ledState.brightness > 0) ? HIGH : LOW);
+    // Channel colors/effects are stored for the UI/API contract until an ARGB driver is wired.
+    bool anyChannelEnabled = false;
+    for (uint8_t i = 0; i < LED_CHANNEL_COUNT; i++) {
+        if (ledState.channels[i].enabled && ledState.channels[i].pixelCount > 0) {
+            anyChannelEnabled = true;
+        }
+    }
+    digitalWrite(STATUS_LED_PIN, (ledState.on && ledState.brightness > 0 && anyChannelEnabled) ? HIGH : LOW);
+}
+
+void writeLedStateJson(JsonDocument& doc) {
+    doc["schema"] = 2;
+    doc["on"] = ledState.on;
+    doc["bri"] = ledState.brightness;
+    doc["channelCount"] = LED_CHANNEL_COUNT;
+    doc["maxPixelsPerChannel"] = LED_MAX_PIXELS_PER_CHANNEL;
+
+    JsonArray effects = doc.createNestedArray("supportedEffects");
+    for (uint8_t i = 0; i < LED_EFFECT_COUNT; i++) {
+        effects.add(LED_EFFECTS[i]);
+    }
+
+    JsonArray channels = doc.createNestedArray("channels");
+    for (uint8_t i = 0; i < LED_CHANNEL_COUNT; i++) {
+        const LedChannelState& channel = ledState.channels[i];
+        JsonObject entry = channels.createNestedObject();
+        entry["id"] = i + 1;
+        entry["enabled"] = channel.enabled;
+        entry["pixels"] = channel.pixelCount;
+        entry["effect"] = channel.effect;
+        JsonArray color = entry.createNestedArray("color");
+        color.add(channel.red);
+        color.add(channel.green);
+        color.add(channel.blue);
+        JsonArray secondaryColor = entry.createNestedArray("secondaryColor");
+        secondaryColor.add(channel.secondaryRed);
+        secondaryColor.add(channel.secondaryGreen);
+        secondaryColor.add(channel.secondaryBlue);
+        entry["speed"] = channel.speed;
+        entry["reverse"] = channel.reverse;
+    }
 }
 
 bool saveLedState() {
@@ -325,18 +394,33 @@ bool saveLedState() {
         return false;
     }
 
-    StaticJsonDocument<256> doc;
-    doc["schema"] = 1;
-    doc["on"] = ledState.on;
-    doc["bri"] = ledState.brightness;
-    JsonArray rgb = doc.createNestedArray("rgb");
-    rgb.add(ledState.red);
-    rgb.add(ledState.green);
-    rgb.add(ledState.blue);
+    StaticJsonDocument<1536> doc;
+    writeLedStateJson(doc);
 
     bool success = serializeJson(doc, file) > 0;
     file.close();
     return success;
+}
+
+bool readLedColor(JsonVariantConst value, uint8_t& red, uint8_t& green, uint8_t& blue, String& error, const char* fieldName) {
+    JsonArrayConst color = value.as<JsonArrayConst>();
+    if (color.isNull() || color.size() != 3) {
+        error = String(fieldName) + " must contain three values";
+        return false;
+    }
+
+    int nextRed = color[0] | -1;
+    int nextGreen = color[1] | -1;
+    int nextBlue = color[2] | -1;
+    if (nextRed < 0 || nextRed > 255 || nextGreen < 0 || nextGreen > 255 || nextBlue < 0 || nextBlue > 255) {
+        error = String(fieldName) + " values must be between 0 and 255";
+        return false;
+    }
+
+    red = static_cast<uint8_t>(nextRed);
+    green = static_cast<uint8_t>(nextGreen);
+    blue = static_cast<uint8_t>(nextBlue);
+    return true;
 }
 
 bool updateLedStateFromJson(JsonObjectConst root, String& error) {
@@ -355,22 +439,79 @@ bool updateLedStateFromJson(JsonObjectConst root, String& error) {
         next.brightness = static_cast<uint8_t>(brightness);
     }
 
-    JsonArrayConst rgb = root["rgb"];
-    if (!rgb.isNull()) {
-        if (rgb.size() != 3) {
-            error = "rgb must contain three values";
+    JsonArrayConst legacyRgb = root["rgb"];
+    if (!legacyRgb.isNull()) {
+        if (!readLedColor(legacyRgb, next.channels[0].red, next.channels[0].green, next.channels[0].blue, error, "rgb")) {
             return false;
         }
-        int red = rgb[0] | -1;
-        int green = rgb[1] | -1;
-        int blue = rgb[2] | -1;
-        if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255) {
-            error = "rgb values must be between 0 and 255";
+    }
+
+    if (root.containsKey("channels") && !root["channels"].is<JsonArrayConst>()) {
+        error = "invalid LED channels";
+        return false;
+    }
+
+    JsonArrayConst channels = root["channels"];
+    if (!channels.isNull()) {
+        if (channels.size() > LED_CHANNEL_COUNT) {
+            error = "too many LED channels";
             return false;
         }
-        next.red = static_cast<uint8_t>(red);
-        next.green = static_cast<uint8_t>(green);
-        next.blue = static_cast<uint8_t>(blue);
+
+        for (JsonObjectConst item : channels) {
+            int channelId = item["id"] | 0;
+            if (channelId < 1 || channelId > LED_CHANNEL_COUNT) {
+                error = "invalid LED channel id";
+                return false;
+            }
+
+            LedChannelState& channel = next.channels[channelId - 1];
+
+            if (item.containsKey("enabled")) {
+                channel.enabled = item["enabled"] | false;
+            }
+
+            if (item.containsKey("pixels")) {
+                int pixels = item["pixels"] | -1;
+                if (pixels < 0 || pixels > LED_MAX_PIXELS_PER_CHANNEL) {
+                    error = "pixels must be between 0 and 50";
+                    return false;
+                }
+                channel.pixelCount = static_cast<uint8_t>(pixels);
+            }
+
+            if (item.containsKey("effect")) {
+                String effect = item["effect"] | "";
+                if (!isSupportedLedEffect(effect)) {
+                    error = "unsupported LED effect";
+                    return false;
+                }
+                channel.effect = effect;
+            }
+
+            if (item.containsKey("color") &&
+                !readLedColor(item["color"], channel.red, channel.green, channel.blue, error, "color")) {
+                return false;
+            }
+
+            if (item.containsKey("secondaryColor") &&
+                !readLedColor(item["secondaryColor"], channel.secondaryRed, channel.secondaryGreen, channel.secondaryBlue, error, "secondaryColor")) {
+                return false;
+            }
+
+            if (item.containsKey("speed")) {
+                int speed = item["speed"] | -1;
+                if (speed < 1 || speed > 100) {
+                    error = "speed must be between 1 and 100";
+                    return false;
+                }
+                channel.speed = static_cast<uint8_t>(speed);
+            }
+
+            if (item.containsKey("reverse")) {
+                channel.reverse = item["reverse"] | false;
+            }
+        }
     }
 
     ledState = next;
@@ -393,10 +534,11 @@ void loadLedState() {
         return;
     }
 
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<1536> doc;
     DeserializationError parseError = deserializeJson(doc, file);
     file.close();
-    if (parseError || (doc["schema"] | 0) != 1) {
+    int schema = doc["schema"] | 0;
+    if (parseError || (schema != 1 && schema != 2)) {
         Serial.println("LED config: invalid or unsupported config; using defaults");
         applyLedState();
         return;
