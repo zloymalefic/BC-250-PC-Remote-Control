@@ -24,6 +24,8 @@ gate. Do not power LED strips or fan lighting directly from an ESP32 GPIO.
 Use a MOSFET or load switch sized for the LED current, a fused external 5 V LED
 supply, and a shared ground with the ESP32.
 
+![BC-250 ESP32 wiring with optional LED power gate](docs/wiring-led.svg)
+
 ```text
 BC-250 / ATX power control
 
