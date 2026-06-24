@@ -14,7 +14,53 @@ ESP32 and 2-channel 5V relay based remote control for a BC-250 ATX power supply.
 - Use connect or button press as the controller trigger.
 - Authorize up to four controllers by Bluetooth MAC address.
 - Inspect the detected model, MAC address, vendor ID, and product ID.
+- Configure LED lighting state and an optional external LED power gate.
 - Configure Wi-Fi and install firmware or filesystem updates through the web UI.
+
+## Wiring
+
+The PC power-control wiring stays isolated from the optional LED lighting power
+gate. Do not power LED strips or fan lighting directly from an ESP32 GPIO.
+Use a MOSFET or load switch sized for the LED current, a fused external 5 V LED
+supply, and a shared ground with the ESP32.
+
+```text
+BC-250 / ATX power control
+
+ESP32 GPIO16 (OPTO_PIN)  -> relay 1 input -> ATX PS_ON path
+ESP32 GPIO17 (EXTRA_PIN) -> relay 2 input -> BC-250 power-button pulse
+ESP32 GPIO4  (PC_MONITOR_PIN) <- TPMS1 pin 9 monitor signal
+ESP32 GPIO22 (BUTTON_PIN) <- momentary button to GND, active LOW
+ESP32 GPIO23 (POWER_LED_PIN) -> optional case power LED indicator
+ESP32 GPIO2  (STATUS_LED_PIN) -> local firmware/status indicator
+
+Optional LED/ARGB power gate
+
+External 5 V LED PSU +  ---- fuse ---- LED/ARGB +5 V
+External 5 V LED PSU -  ---------------- LED/ARGB GND
+External 5 V LED PSU -  ---------------- ESP32 GND
+ESP32 LED_POWER_PIN ---- gate/enable ---- MOSFET or load-switch control
+MOSFET/load switch  ---- switched path -- LED/ARGB power return or +5 V rail
+```
+
+`LED_POWER_PIN` is `-1` by default in `pins.h`, so the firmware will not touch a
+new GPIO until the wiring is explicitly assigned. The default driver polarity is
+active HIGH and the default reported settle time is 50 ms.
+
+| Function | Firmware symbol | Default GPIO | Electrical note |
+|---|---:|---:|---|
+| PSU relay control | `OPTO_PIN` | 16 | Safety-critical, do not reuse for LEDs |
+| BC-250 power button relay | `EXTRA_PIN` | 17 | Pulse output, do not reuse for LEDs |
+| PC state monitor | `PC_MONITOR_PIN` | 4 | Input from TPMS1 pin 9 |
+| Physical button | `BUTTON_PIN` | 22 | Active LOW to ground |
+| Optional LED power gate | `LED_POWER_PIN` | disabled (`-1`) | Assign only after MOSFET/load-switch wiring is verified |
+| LED power active level | `LED_POWER_ACTIVE_LEVEL` | `HIGH` | Match the selected driver circuit |
+| LED power settle time | `LED_POWER_SETTLE_MS` | 50 ms | Non-blocking API-reported stabilization window |
+
+For addressable ARGB strips or fans, LED data wiring is separate from the power
+gate and is not enabled by this firmware yet. Keep the data line short, add the
+level shifting/resistor/capacitor recommended by the LED vendor, and do not
+connect ARGB 5 V to ESP32 3.3 V pins.
 
 ## Supported controllers
 
