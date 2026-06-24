@@ -21,6 +21,9 @@ WEB_SERVER = REPO_ROOT / "web_server.h"
 DATA_DIR = REPO_ROOT / "data"
 GAMEPAD_CONTROLLER = REPO_ROOT / "gamepad_controller.h"
 FIRMWARE = REPO_ROOT / "ota_pc_remote.ino"
+PINS = REPO_ROOT / "pins.h"
+LED_POWER_DRIVER = REPO_ROOT / "led_power_driver.h"
+BUILD_FIRMWARE = REPO_ROOT / "tools" / "build_firmware.py"
 
 
 @dataclass(frozen=True, order=True)
@@ -364,6 +367,14 @@ class WebContractTests(unittest.TestCase):
             "bri",
             "channelCount",
             "maxPixelsPerChannel",
+            "power",
+            "configured",
+            "pin",
+            "activeHigh",
+            "enabled",
+            "requested",
+            "ready",
+            "settleMs",
             "supportedEffects",
             "channels",
             "id",
@@ -392,7 +403,26 @@ class WebContractTests(unittest.TestCase):
         self.assertIn('type="color"', led_html)
         self.assertIn("clampByte", led_html)
         self.assertIn("channelTemplate", led_html)
+        self.assertIn("powerDriverSummary", led_html)
         self.assertIn("JSON.stringify(collectLedState())", led_html)
+
+    def test_led_power_driver_is_optional_and_separate_from_pc_relays(self) -> None:
+        pins_text = read_text(PINS)
+        driver_text = read_text(LED_POWER_DRIVER)
+        firmware_text = read_text(FIRMWARE)
+        build_text = read_text(BUILD_FIRMWARE)
+
+        self.assertIn("#define LED_POWER_PIN -1", pins_text)
+        self.assertIn("#define LED_POWER_ACTIVE_LEVEL HIGH", pins_text)
+        self.assertIn("#define LED_POWER_SETTLE_MS 50UL", pins_text)
+        self.assertIn("class LedPowerDriver", driver_text)
+        self.assertIn("bool isConfigured() const", driver_text)
+        self.assertIn("LED_POWER_PIN >= 0", driver_text)
+        self.assertIn("LedPowerDriver ledPowerDriver", firmware_text)
+        self.assertIn("ledPowerDriver.setEnabled(requestedPower)", firmware_text)
+        self.assertIn('"led_power_driver.h"', build_text)
+        self.assertNotIn("OPTO_PIN", driver_text)
+        self.assertNotIn("EXTRA_PIN", driver_text)
 
 
 class ControllerConfigSchemaTests(unittest.TestCase):

@@ -6,8 +6,14 @@
 #define STATUS_LED_PIN 2 // >> OPTIONAL STATUS (LED TO) EPS32 GROUND 
 #define POWER_LED_PIN 23 // >> POWER BUTTON (LED TO) EPS32 GROUND 
 #define BUTTON_PIN 22 // >> MOMENTARY POWER (BUTTON TO) EPS32 GROUND 
-#define PC_MONITOR_PIN 4 // >> TO BC-250 TPMS1 PIN9 3V 
+#define PC_MONITOR_PIN 4 // >> TO BC-250 TPMS1 PIN9 3V
 #define EXTRA_PIN 17 // DEVBOARD RELAY2 (BC-250 POWER BUTTON PIN TO) TPMS1 PIN 17
+
+// Optional LED/ARGB power gate. Set to a real GPIO after wiring a MOSFET/load
+// switch for LED power. -1 keeps the driver disabled and avoids touching pins.
+#define LED_POWER_PIN -1
+#define LED_POWER_ACTIVE_LEVEL HIGH
+#define LED_POWER_SETTLE_MS 50UL
 
 // BC-250 POWER BUTTON PIN
 //        P R

@@ -27,6 +27,7 @@ DEFAULT_FQBN = "esp32-bluepad32:esp32:esp32"
 SKETCH_FILES = (
     "ota_pc_remote.ino",
     "gamepad_controller.h",
+    "led_power_driver.h",
     "pc_control.h",
     "pins.h",
     "version.h",
