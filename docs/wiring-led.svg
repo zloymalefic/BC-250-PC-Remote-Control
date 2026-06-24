@@ -1,238 +1,210 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900" role="img" aria-labelledby="title desc">
-  <title id="title">BC-250 ESP32 relay board wiring with optional LED power gate</title>
-  <desc id="desc">Board-layout wiring diagram for the ESP32 two-relay board. External wires terminate at named board pins and screw terminals. Optional LED power uses a separate fused supply and MOSFET/load switch.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="909" height="541" viewBox="0 0 909 541" role="img" aria-labelledby="title desc">
+  <title id="title">BC-250 ESP32 relay board wiring</title>
+  <desc id="desc">Board-layout wiring diagram matching the reference image. GPIO16 OPTO_PIN drives relay 1 for PS_ON, GPIO17 EXTRA_PIN drives relay 2 for the BC-250 power button, GPIO4 PC_MONITOR_PIN monitors TPMS1 pin 9, GPIO22 BUTTON_PIN reads the momentary button, GPIO23 POWER_LED_PIN drives the button LED, GPIO2 STATUS_LED_PIN is optional status, and LED_POWER_PIN is disabled by default unless wired to a MOSFET or load switch.</desc>
   <defs>
-    <pattern id="small-grid" width="12" height="12" patternUnits="userSpaceOnUse">
-      <path d="M12 0H0V12" fill="none" stroke="#dfe4ec" stroke-width="1"/>
+    <pattern id="small-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+      <path d="M16 0H0V16" fill="none" stroke="#d9d9d9" stroke-width="1"/>
     </pattern>
-    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-      <rect width="60" height="60" fill="url(#small-grid)"/>
-      <path d="M60 0H0V60" fill="none" stroke="#c3cad5" stroke-width="1.2"/>
+    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+      <rect width="80" height="80" fill="url(#small-grid)"/>
+      <path d="M80 0H0V80" fill="none" stroke="#c9c9c9" stroke-width="1.2"/>
     </pattern>
+    <filter id="shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#8b8b8b" flood-opacity=".35"/>
+    </filter>
     <style>
-      .bg { fill: #f5f7fa; }
-      .panel { fill: #fff; stroke: #ccd6e2; stroke-width: 1.5; }
-      .board { fill: #0c62a4; stroke: #064978; stroke-width: 3; }
-      .board-line { fill: none; stroke: #d8f3ff; stroke-width: 2; opacity: .6; }
-      .esp { fill: #d8dde5; stroke: #758295; stroke-width: 1.5; }
-      .chip { fill: #2a3038; stroke: #111827; stroke-width: 1.5; }
-      .relay { fill: #77a9d0; stroke: #2f638d; stroke-width: 1.5; }
-      .terminal { fill: #dff4fa; stroke: #7fb2c2; stroke-width: 1.6; }
-      .component { fill: #cfd8e3; stroke: #758195; stroke-width: 1.2; }
-      .hole { fill: #f8fafc; stroke: #64748b; stroke-width: 1.6; }
-      .pin { fill: #fff; stroke: #111827; stroke-width: 1.4; }
-      .title { fill: #111827; font: 700 18px Arial, sans-serif; }
-      .label { fill: #111827; font: 700 13px Arial, sans-serif; }
-      .small { fill: #111827; font: 700 11px Arial, sans-serif; }
-      .note { fill: #334155; font: 12px Arial, sans-serif; }
-      .warn { fill: #b91c1c; font: 700 12px Arial, sans-serif; }
+      .bg { fill: #f2f2f2; }
+      .label-box { fill: #fff; stroke: #ededed; stroke-width: 1; filter: url(#shadow); }
+      .label { fill: #0f172a; font: 700 14px "Courier New", monospace; letter-spacing: 0; }
+      .small { fill: #0f172a; font: 700 11px Arial, sans-serif; letter-spacing: 0; }
+      .tiny { fill: #0f172a; font: 700 9px Arial, sans-serif; letter-spacing: 0; }
+      .note { fill: #334155; font: 9px Arial, sans-serif; letter-spacing: 0; }
+      .warn { fill: #b91c1c; font: 700 9px Arial, sans-serif; letter-spacing: 0; }
+      .white-text { fill: #fff; }
+      .red-text { fill: #ff1d1d; }
+      .green-text { fill: #118a20; }
+      .purple-text { fill: #a318a8; }
+      .board { fill: #0b6fb3; stroke: #07517d; stroke-width: 2; filter: url(#shadow); }
+      .board-edge { fill: none; stroke: #8bd9ff; stroke-width: 2; opacity: .65; }
+      .module { fill: #d1d5db; stroke: #64748b; stroke-width: 1.4; }
+      .chip { fill: #d8d8d8; stroke: #2f3640; stroke-width: 1.3; }
+      .relay { fill: #86c8e6; stroke: #286485; stroke-width: 1.4; }
+      .relay-label { fill: #fff; font: 700 9px Arial, sans-serif; letter-spacing: 0; }
+      .terminal { fill: #d8edf5; stroke: #7998a6; stroke-width: 1.4; }
+      .terminal-hole { fill: #f8fafc; stroke: #6b7280; stroke-width: 1.2; }
+      .solder { fill: #dfe9f4; stroke: #b8c8d8; stroke-width: 1.2; }
+      .pad { fill: #fff; stroke: #94a3b8; stroke-width: 1.3; }
+      .header { fill: #233248; stroke: #0f172a; stroke-width: 1; }
+      .pin { fill: #cbd5e1; stroke: #334155; stroke-width: 1; }
       .wire { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-      .thinwire { fill: none; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
-      .green { stroke: #21a33a; }
-      .red { stroke: #dc2626; }
-      .orange { stroke: #f97316; }
-      .black { stroke: #111827; }
-      .brown { stroke: #6b2f18; }
-      .purple { stroke: #a21caf; }
+      .thinwire { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .green { stroke: #37d21e; }
+      .red { stroke: #ff1d1d; }
+      .orange { stroke: #ff8a1c; }
+      .black { stroke: #050505; }
+      .brown { stroke: #5b160f; }
+      .purple { stroke: #a318a8; }
       .blue { stroke: #0284c7; }
-      .gray { stroke: #64748b; }
-      .yellow { stroke: #d4a000; stroke-dasharray: 10 8; }
-      .node { fill: #fff; stroke-width: 2.4; }
-      .netlabel { fill: #fff; stroke: #cbd5e1; stroke-width: 1.2; }
+      .node { fill: #fff; stroke-width: 2; }
     </style>
   </defs>
 
-  <rect width="1500" height="900" class="bg"/>
-  <rect width="1500" height="900" fill="url(#grid)" opacity=".72"/>
+  <rect width="909" height="541" class="bg"/>
+  <rect width="909" height="541" fill="url(#grid)" opacity=".92"/>
 
-  <rect x="30" y="250" width="310" height="388" rx="8" class="panel"/>
-  <text x="52" y="282" class="title">WIRING NOTES</text>
-  <text x="52" y="314" class="note">Pin labels below match pins.h:</text>
-  <text x="52" y="340" class="small">GPIO16 OPTO_PIN -> Relay 1 input</text>
-  <text x="52" y="364" class="small">GPIO17 EXTRA_PIN -> Relay 2 input</text>
-  <text x="52" y="388" class="small">GPIO4 PC_MONITOR_PIN -> TPMS1 pin 9</text>
-  <text x="52" y="412" class="small">GPIO22 BUTTON_PIN -> button to GND</text>
-  <text x="52" y="436" class="small">GPIO23 POWER_LED_PIN -> button LED</text>
-  <text x="52" y="460" class="small">GPIO2 STATUS_LED_PIN -> optional status LED</text>
-  <line x1="52" y1="484" x2="318" y2="484" stroke="#d7dee8" stroke-width="1"/>
-  <text x="52" y="512" class="warn">LED_POWER_PIN is -1 by default.</text>
-  <text x="52" y="536" class="note">Assign a free GPIO before connecting</text>
-  <text x="52" y="556" class="note">the MOSFET gate / load-switch enable.</text>
-  <text x="52" y="586" class="note">LED +5V comes from the external</text>
-  <text x="52" y="606" class="note">fused LED PSU, not from ESP32 GPIO.</text>
+  <g id="top-labels">
+    <rect x="18" y="16" width="256" height="37" rx="3" class="label-box"/>
+    <text x="28" y="38" class="label">MOMENTARY LED POWER BUTTON</text>
 
-  <rect x="62" y="30" width="226" height="44" rx="7" class="panel"/>
-  <text x="82" y="58" class="title">MOMENTARY BUTTON</text>
+    <rect x="289" y="15" width="214" height="38" rx="3" class="label-box"/>
+    <text x="302" y="38" class="label">BC-250 TPMS1 CONNECTOR</text>
 
-  <rect x="520" y="30" width="282" height="44" rx="7" class="panel"/>
-  <text x="542" y="58" class="title">BC-250 TPMS1 CONNECTOR</text>
+    <rect x="545" y="15" width="342" height="38" rx="3" class="label-box"/>
+    <text x="557" y="38" class="label">BC-250 POWER BUTTON PADS</text>
+  </g>
 
-  <rect x="1006" y="30" width="388" height="44" rx="7" class="panel"/>
-  <text x="1028" y="58" class="title">BC-250 POWER BUTTON PADS</text>
-
-  <g id="button-connector">
-    <rect x="82" y="112" width="150" height="132" rx="10" class="panel"/>
-    <text x="104" y="140" class="label">Button / LED</text>
-    <text x="98" y="172" class="small">BTN</text>
-    <text x="98" y="208" class="small">GND</text>
-    <text x="158" y="172" class="small">LED</text>
-    <text x="158" y="208" class="small">GND</text>
-    <circle cx="124" cy="184" r="8" class="hole"/>
-    <circle cx="124" cy="220" r="8" class="hole"/>
-    <circle cx="184" cy="184" r="8" class="hole"/>
-    <circle cx="184" cy="220" r="8" class="hole"/>
+  <g id="momentary-button">
+    <rect x="75" y="80" width="32" height="84" rx="4" fill="#f8fafc" filter="url(#shadow)"/>
+    <rect x="130" y="80" width="32" height="84" rx="4" fill="#f8fafc" filter="url(#shadow)"/>
+    <text x="89" y="101" class="small red-text">+</text>
+    <text x="145" y="101" class="small">-</text>
+    <rect x="72" y="109" width="94" height="58" rx="4" class="solder"/>
+    <circle cx="91" cy="127" r="5" class="node orange"/>
+    <circle cx="119" cy="127" r="5" class="terminal-hole"/>
+    <circle cx="150" cy="127" r="5" class="node brown"/>
+    <circle cx="91" cy="155" r="5" class="node black"/>
+    <circle cx="119" cy="155" r="5" class="terminal-hole"/>
+    <circle cx="150" cy="155" r="5" class="terminal-hole"/>
   </g>
 
   <g id="tpms1-connector">
-    <rect x="536" y="104" width="288" height="42" rx="6" class="terminal"/>
-    <text x="548" y="96" class="small">17 GND</text>
-    <text x="690" y="96" class="small">9 3V monitor</text>
-    <circle cx="568" cy="125" r="7" class="hole"/>
-    <circle cx="600" cy="125" r="7" class="hole"/>
-    <circle cx="632" cy="125" r="7" class="hole"/>
-    <circle cx="664" cy="125" r="7" class="hole"/>
-    <circle cx="696" cy="125" r="7" class="hole"/>
-    <circle cx="728" cy="125" r="7" class="hole"/>
-    <circle cx="760" cy="125" r="7" class="hole"/>
-    <circle cx="792" cy="125" r="7" class="hole"/>
+    <text x="310" y="74" class="small">17</text>
+    <text x="402" y="74" class="small">9</text>
+    <rect x="305" y="84" width="176" height="18" rx="1" class="header"/>
+    <g>
+      <circle cx="320" cy="93" r="5" class="pin"/>
+      <circle cx="341" cy="93" r="5" class="pin"/>
+      <circle cx="362" cy="93" r="5" class="pin"/>
+      <circle cx="383" cy="93" r="5" class="pin"/>
+      <circle cx="404" cy="93" r="5" class="pin"/>
+      <circle cx="425" cy="93" r="5" class="pin"/>
+      <circle cx="446" cy="93" r="5" class="pin"/>
+      <circle cx="467" cy="93" r="5" class="pin"/>
+    </g>
   </g>
 
-  <g id="bc250-power-button-pads">
-    <rect x="1070" y="102" width="160" height="142" rx="8" class="terminal"/>
-    <circle cx="1106" cy="132" r="10" class="hole"/>
-    <circle cx="1148" cy="132" r="10" class="hole"/>
-    <circle cx="1190" cy="132" r="10" class="hole"/>
-    <circle cx="1106" cy="176" r="10" class="hole"/>
-    <circle cx="1148" cy="176" r="10" class="hole"/>
-    <circle cx="1106" cy="220" r="10" class="hole"/>
-    <circle cx="1148" cy="220" r="10" class="hole"/>
-    <text x="1082" y="268" class="small">Use only the two power-button pads.</text>
+  <g id="power-button-pads">
+    <rect x="662" y="67" width="126" height="96" rx="3" fill="#dfe9f4" opacity=".78"/>
+    <circle cx="677" cy="80" r="6" class="pad"/>
+    <circle cx="707" cy="80" r="6" class="pad"/>
+    <circle cx="738" cy="80" r="6" class="pad"/>
+    <circle cx="768" cy="80" r="6" class="pad"/>
+    <circle cx="707" cy="111" r="6" class="pad"/>
+    <circle cx="738" cy="111" r="6" class="pad"/>
+    <circle cx="707" cy="142" r="6" class="pad"/>
+    <circle cx="738" cy="142" r="6" class="pad"/>
+  </g>
+
+  <g id="relay-board">
+    <rect x="170" y="198" width="436" height="278" rx="2" class="board"/>
+    <rect x="176" y="204" width="424" height="266" rx="2" class="board-edge"/>
+
+    <rect x="178" y="210" width="44" height="134" rx="2" fill="#153d7a" stroke="#082f65" stroke-width="1.4"/>
+    <g fill="#a8b3c0" stroke="#5c6672" stroke-width="1">
+      <circle cx="189" cy="222" r="4"/><circle cx="189" cy="238" r="4"/><circle cx="189" cy="254" r="4"/><circle cx="189" cy="270" r="4"/>
+      <circle cx="189" cy="286" r="4"/><circle cx="189" cy="302" r="4"/><circle cx="189" cy="318" r="4"/><circle cx="189" cy="334" r="4"/>
+      <circle cx="210" cy="222" r="4"/><circle cx="210" cy="238" r="4"/><circle cx="210" cy="254" r="4"/><circle cx="210" cy="270" r="4"/>
+      <circle cx="210" cy="286" r="4"/><circle cx="210" cy="302" r="4"/><circle cx="210" cy="318" r="4"/><circle cx="210" cy="334" r="4"/>
+    </g>
+
+    <rect x="229" y="219" width="128" height="128" rx="5" class="module"/>
+    <rect x="232" y="222" width="122" height="122" rx="2" class="chip"/>
+    <text x="267" y="291" class="small">ESP32</text>
+    <rect x="346" y="212" width="22" height="138" rx="2" fill="#f4f4f4" opacity=".95"/>
+    <g fill="#cbd5e1" stroke="#334155" stroke-width=".8">
+      <circle cx="356" cy="226" r="3"/><circle cx="356" cy="238" r="3"/><circle cx="356" cy="250" r="3"/><circle cx="356" cy="262" r="3"/>
+      <circle cx="356" cy="274" r="3"/><circle cx="356" cy="286" r="3"/><circle cx="356" cy="298" r="3"/><circle cx="356" cy="310" r="3"/>
+      <circle cx="356" cy="322" r="3"/><circle cx="356" cy="334" r="3"/>
+    </g>
+
+    <rect x="383" y="181" width="108" height="34" rx="4" class="terminal"/>
+    <circle cx="408" cy="198" r="8" class="terminal-hole"/>
+    <circle cx="446" cy="198" r="8" class="terminal-hole"/>
+    <circle cx="480" cy="198" r="8" class="terminal-hole"/>
+    <rect x="498" y="181" width="108" height="34" rx="4" class="terminal"/>
+    <circle cx="523" cy="198" r="8" class="terminal-hole"/>
+    <circle cx="560" cy="198" r="8" class="terminal-hole"/>
+    <circle cx="594" cy="198" r="8" class="terminal-hole"/>
+
+    <rect x="404" y="214" width="95" height="132" rx="7" class="relay"/>
+    <rect x="514" y="214" width="95" height="132" rx="7" class="relay"/>
+    <text x="424" y="279" class="relay-label">RELAY 1</text>
+    <text x="534" y="279" class="relay-label">RELAY 2</text>
+
+    <rect x="488" y="437" width="118" height="38" rx="4" class="terminal"/>
+    <circle cx="528" cy="458" r="8" class="terminal-hole"/>
+    <circle cx="560" cy="458" r="8" class="terminal-hole"/>
+    <text x="491" y="428" class="small white-text">VCC GND 5V</text>
+
+    <rect x="206" y="381" width="45" height="36" rx="4" fill="#8a8a8a" stroke="#555"/>
+    <circle cx="229" cy="399" r="12" fill="#bcbcbc" stroke="#666"/>
+    <text x="199" y="439" class="small white-text">EN</text>
+    <rect x="205" y="423" width="48" height="36" rx="4" fill="#6f7782" stroke="#4b5563"/>
+
+    <rect x="292" y="407" width="35" height="27" rx="3" fill="#9ca3af" stroke="#4b5563"/>
+    <rect x="346" y="407" width="35" height="27" rx="3" fill="#9ca3af" stroke="#4b5563"/>
+    <rect x="421" y="409" width="35" height="20" rx="2" fill="#bfc5cc" stroke="#64748b"/>
+    <circle cx="474" cy="451" r="21" fill="#d9d9d9" stroke="#64748b" stroke-width="2"/>
+
+    <text x="365" y="243" class="tiny">GPIO4 PC_MONITOR_PIN</text>
+    <text x="365" y="257" class="tiny">GPIO16 OPTO_PIN</text>
+    <text x="365" y="271" class="tiny">GPIO17 EXTRA_PIN</text>
+    <text x="365" y="285" class="tiny">GPIO22 BUTTON_PIN</text>
+    <text x="365" y="299" class="tiny">GPIO23 POWER_LED_PIN</text>
+    <text x="365" y="313" class="tiny">GPIO2 STATUS_LED_PIN</text>
   </g>
 
   <g id="psu-connector">
-    <rect x="1224" y="282" width="170" height="226" rx="8" class="panel"/>
-    <text x="1248" y="312" class="title">PSU</text>
-    <text x="1284" y="352" class="small">GND</text>
-    <text x="1284" y="398" class="small">PS_ON</text>
-    <text x="1284" y="444" class="small">+5VSB</text>
-    <text x="1284" y="490" class="small">GND</text>
-    <circle cx="1260" cy="348" r="7" class="node black"/>
-    <circle cx="1260" cy="394" r="7" class="node green"/>
-    <circle cx="1260" cy="440" r="7" class="node purple"/>
-    <circle cx="1260" cy="486" r="7" class="node black"/>
+    <rect x="688" y="181" width="142" height="40" rx="3" class="label-box"/>
+    <text x="705" y="206" class="label">PSU CONNECTOR</text>
+    <rect x="747" y="225" width="72" height="101" rx="3" class="label-box"/>
+    <text x="762" y="250" class="small">GND</text>
+    <text x="762" y="280" class="small green-text">PS_ON</text>
+    <text x="762" y="309" class="small purple-text">+5VSB</text>
+    <text x="762" y="340" class="small">GND</text>
+    <circle cx="738" cy="244" r="5" class="node black"/>
+    <circle cx="738" cy="276" r="5" class="node green"/>
+    <circle cx="738" cy="306" r="5" class="node purple"/>
+    <circle cx="738" cy="336" r="5" class="node black"/>
   </g>
 
-  <g id="esp32-two-relay-board">
-    <rect x="390" y="250" width="620" height="330" rx="12" class="board"/>
-    <rect x="404" y="264" width="592" height="302" rx="10" class="board-line"/>
+  <g id="source-like-wires">
+    <path class="wire green" d="M121 96 V66 H280 V291 H356"/>
+    <path class="thinwire orange" d="M91 127 V164 H377 V198 H408"/>
+    <path class="wire black" d="M91 155 V184 H318 V102"/>
+    <path class="wire brown" d="M150 127 V184 H427 V198"/>
 
-    <rect x="454" y="310" width="178" height="166" rx="7" class="esp"/>
-    <rect x="490" y="346" width="106" height="88" rx="4" class="chip"/>
-    <text x="526" y="394" class="small" fill="#fff">ESP32</text>
-    <rect x="418" y="314" width="24" height="196" rx="4" class="component"/>
-    <rect x="644" y="314" width="24" height="196" rx="4" class="component"/>
+    <path class="wire black" d="M320 102 V139 H407"/>
+    <path class="wire red" d="M404 93 V119 H348 V242 H356"/>
+    <path class="wire brown" d="M407 139 V183 H446 V198"/>
 
-    <g fill="#d1d5db" stroke="#6b7280" stroke-width="1.2">
-      <circle cx="430" cy="334" r="5"/><circle cx="430" cy="358" r="5"/><circle cx="430" cy="382" r="5"/><circle cx="430" cy="406" r="5"/>
-      <circle cx="430" cy="430" r="5"/><circle cx="430" cy="454" r="5"/><circle cx="430" cy="478" r="5"/><circle cx="430" cy="502" r="5"/>
-      <circle cx="656" cy="334" r="5"/><circle cx="656" cy="358" r="5"/><circle cx="656" cy="382" r="5"/><circle cx="656" cy="406" r="5"/>
-      <circle cx="656" cy="430" r="5"/><circle cx="656" cy="454" r="5"/><circle cx="656" cy="478" r="5"/><circle cx="656" cy="502" r="5"/>
-    </g>
+    <path class="wire green" d="M560 198 V134 H737 V80"/>
+    <path class="wire black" d="M523 198 V170 H662 V244 H738"/>
+    <path class="wire green" d="M594 198 H626 V276 H738"/>
 
-    <rect x="700" y="322" width="112" height="128" rx="8" class="relay"/>
-    <rect x="846" y="322" width="112" height="128" rx="8" class="relay"/>
-    <text x="729" y="386" class="small" fill="#fff">RELAY 1</text>
-    <text x="875" y="386" class="small" fill="#fff">RELAY 2</text>
-
-    <rect x="720" y="274" width="130" height="44" rx="6" class="terminal"/>
-    <text x="724" y="268" class="small">R1 COM  NO  NC</text>
-    <circle cx="750" cy="296" r="9" class="hole"/>
-    <circle cx="790" cy="296" r="9" class="hole"/>
-    <circle cx="830" cy="296" r="9" class="hole"/>
-
-    <rect x="860" y="274" width="130" height="44" rx="6" class="terminal"/>
-    <text x="864" y="268" class="small">R2 COM  NO  NC</text>
-    <circle cx="890" cy="296" r="9" class="hole"/>
-    <circle cx="930" cy="296" r="9" class="hole"/>
-    <circle cx="970" cy="296" r="9" class="hole"/>
-
-    <rect x="804" y="520" width="144" height="44" rx="6" class="terminal"/>
-    <text x="814" y="515" class="small">Relay board power</text>
-    <text x="830" y="552" class="small">GND</text>
-    <text x="894" y="552" class="small">5V</text>
-    <circle cx="860" cy="542" r="9" class="hole"/>
-    <circle cx="910" cy="542" r="9" class="hole"/>
-
-    <circle cx="656" cy="358" r="6" class="pin"/>
-    <text x="672" y="362" class="small">GPIO4 PC_MONITOR_PIN</text>
-    <circle cx="656" cy="390" r="6" class="pin"/>
-    <text x="672" y="394" class="small">GPIO16 OPTO_PIN</text>
-    <circle cx="656" cy="422" r="6" class="pin"/>
-    <text x="672" y="426" class="small">GPIO17 EXTRA_PIN</text>
-    <circle cx="656" cy="454" r="6" class="pin"/>
-    <text x="672" y="458" class="small">GPIO22 BUTTON_PIN</text>
-    <circle cx="656" cy="486" r="6" class="pin"/>
-    <text x="672" y="490" class="small">GPIO23 POWER_LED_PIN</text>
-    <circle cx="430" cy="478" r="6" class="pin"/>
-    <text x="450" y="482" class="small">GPIO2 STATUS_LED_PIN</text>
-    <circle cx="430" cy="502" r="6" class="pin"/>
-    <text x="450" y="506" class="small">Configured GPIO for LED_POWER_PIN</text>
-
-    <path class="thinwire blue" d="M656 390 C690 390 690 386 700 386"/>
-    <path class="thinwire blue" d="M656 422 C830 422 830 386 846 386"/>
+    <path class="wire purple" d="M560 458 V502 H692 V306 H738"/>
+    <path class="wire black" d="M528 458 V524 H738 V336"/>
   </g>
 
-  <g id="led-power-gate">
-    <rect x="948" y="656" width="106" height="50" rx="8" class="panel"/>
-    <text x="970" y="686" class="small">5V LED PSU</text>
-    <rect x="1090" y="656" width="76" height="50" rx="8" class="panel"/>
-    <text x="1116" y="686" class="small">FUSE</text>
-    <rect x="1218" y="640" width="148" height="66" rx="8" class="panel"/>
-    <text x="1248" y="678" class="small">LED / ARGB</text>
-    <rect x="948" y="776" width="204" height="50" rx="8" class="panel"/>
-    <text x="970" y="806" class="small">MOSFET / LOAD SWITCH</text>
-    <circle cx="1000" cy="656" r="6" class="node orange"/>
-    <circle cx="1000" cy="706" r="6" class="node black"/>
-    <circle cx="1090" cy="681" r="6" class="node orange"/>
-    <circle cx="1166" cy="681" r="6" class="node orange"/>
-    <circle cx="1218" cy="666" r="6" class="node orange"/>
-    <circle cx="1218" cy="694" r="6" class="node black"/>
-    <circle cx="948" cy="801" r="6" class="node blue"/>
-    <circle cx="1050" cy="776" r="6" class="node black"/>
-    <circle cx="1050" cy="826" r="6" class="node black"/>
-    <rect x="1134" y="760" width="318" height="90" rx="8" class="panel"/>
-    <text x="1154" y="790" class="warn">GPIO drives only the MOSFET gate.</text>
-    <text x="1154" y="814" class="note">LED current path is PSU + -> fuse -> LED +,</text>
-    <text x="1154" y="834" class="note">LED - -> switch -> PSU - / common GND.</text>
+  <g id="net-labels">
+    <rect x="25" y="486" width="418" height="43" rx="4" class="label-box"/>
+    <text x="36" y="500" class="note">BUTTON_PIN: GPIO22 to GND. POWER_LED_PIN: GPIO23.</text>
+    <text x="36" y="512" class="note">STATUS_LED_PIN: GPIO2. Relay 1: GPIO16 OPTO_PIN to PS_ON.</text>
+    <text x="36" y="524" class="note">Relay 2: GPIO17 EXTRA_PIN to BC-250 power pads.</text>
+
+    <rect x="456" y="486" width="416" height="43" rx="4" class="label-box"/>
+    <text x="468" y="500" class="warn">LED_POWER_PIN is -1 by default.</text>
+    <text x="468" y="512" class="note">GPIO must not power LED load current. Use external fused 5V,</text>
+    <text x="468" y="524" class="note">MOSFET/load switch, and common GND for LED/ARGB power.</text>
   </g>
-
-  <rect x="710" y="218" width="96" height="24" rx="4" class="netlabel"/>
-  <text x="720" y="235" class="small">PS_ON relay</text>
-  <rect x="860" y="218" width="134" height="24" rx="4" class="netlabel"/>
-  <text x="872" y="235" class="small">BC-250 button relay</text>
-
-  <path class="wire black" d="M1260 348 H1134 V210 H750 V296"/>
-  <path class="wire green" d="M1260 394 H1174 V230 H790 V296"/>
-  <path class="wire purple" d="M1260 440 H1166 V618 H910 V542"/>
-  <path class="wire black" d="M1260 486 H1130 V640 H860 V542"/>
-
-  <path class="wire brown" d="M1106 132 V190 H890 V296"/>
-  <path class="wire brown" d="M1148 132 V208 H930 V296"/>
-
-  <path class="wire red" d="M696 125 V190 H626 V358 H656"/>
-  <path class="wire black" d="M568 125 V198 H380 V668 H860 V542"/>
-
-  <path class="wire blue" d="M124 184 V238 H354 V454 H656"/>
-  <path class="wire black" d="M124 220 V238 H354 V668 H860 V542"/>
-  <path class="thinwire blue" d="M184 184 V226 H366 V486 H656"/>
-  <path class="thinwire black" d="M184 220 V226 H366 V690 H860 V542"/>
-
-  <path class="thinwire blue" d="M430 502 H360 V801 H948"/>
-  <path class="wire orange" d="M1000 656 V628 H1062 V681 H1090"/>
-  <path class="wire orange" d="M1166 681 H1218"/>
-  <path class="wire black" d="M1218 694 V776 H1050"/>
-  <path class="wire black" d="M1050 826 V848 H1000 V706"/>
-  <path class="wire black" d="M1000 706 H930 V640 H860 V542"/>
-  <text x="1020" y="626" class="small" fill="#f97316">external LED +5V only</text>
-  <text x="366" y="724" class="small" fill="#0284c7">LED_POWER_PIN gate route is separate from LED power current</text>
 </svg>
