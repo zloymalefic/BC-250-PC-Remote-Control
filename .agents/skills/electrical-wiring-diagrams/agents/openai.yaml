@@ -1,0 +1,4 @@
+interface:
+  display_name: "Electrical Wiring Diagrams"
+  short_description: "Draw clear wiring diagrams for electronics projects."
+  default_prompt: "Use $electrical-wiring-diagrams to create or revise a wiring diagram with accurate pins, power rails, grounds, and validation notes."
